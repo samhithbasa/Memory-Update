@@ -290,7 +290,7 @@ app.get('/test-auth', (req, res) => {
 // Add this debug route to check compilers
 app.get('/check-compilers', (req, res) => {
     const { exec } = require('child_process');
-    
+
     const commands = [
         { name: 'python3', cmd: 'python3 --version' },
         { name: 'python', cmd: 'python --version' },
@@ -302,7 +302,7 @@ app.get('/check-compilers', (req, res) => {
     const results = {};
     let completed = 0;
 
-    commands.forEach(({name, cmd}) => {
+    commands.forEach(({ name, cmd }) => {
         exec(cmd, (error, stdout, stderr) => {
             results[name] = {
                 installed: !error,
@@ -310,7 +310,7 @@ app.get('/check-compilers', (req, res) => {
                 error: error ? error.message : null
             };
             completed++;
-            
+
             if (completed === commands.length) {
                 res.json({
                     platform: process.platform,
@@ -1289,7 +1289,7 @@ app.get('*', (req, res) => {
 // WebSocket connection handling
 wss.on('connection', (ws) => {
     console.log('🔵 [DEBUG] New terminal WebSocket connection established');
-    
+
     let process = null;
     let tempFiles = [];
     let currentJavaClassName = 'Main';
@@ -1441,11 +1441,11 @@ wss.on('connection', (ws) => {
             case 'Python':
                 console.log('🐍 [DEBUG] Processing Python code');
                 filename = path.join(tempDir, `code-${timestamp}.py`);
-                fs.writeFileSync(filename, code); // Use original code for Python
+                fs.writeFileSync(filename, code);
                 tempFiles.push(filename);
                 console.log('📝 [DEBUG] Python file created:', filename);
 
-                command = 'python';
+                command = 'python3';  // Changed from 'python' to 'python3'
                 args = [filename];
                 console.log('⚙️ [DEBUG] Python execute command:', command, args);
                 break;
@@ -1567,7 +1567,7 @@ wss.on('connection', (ws) => {
 
         function runProcess(cmd, args) {
             console.log('🎯 [DEBUG] runProcess called with:', { cmd, args });
-            
+
             process = spawn(cmd, args, {
                 cwd: tempDir,
                 stdio: ['pipe', 'pipe', 'pipe']
