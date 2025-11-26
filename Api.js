@@ -20,7 +20,7 @@ const { google } = require('googleapis');
 const url = require('url');
 
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 3000;
 
 // Initialize database connection first
 let db;
@@ -69,7 +69,7 @@ app.use('/css', express.static(path.join(__dirname, "public", "css")));
 const oauth2Client = new google.auth.OAuth2(
     "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
     "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",
-    "http://localhost:8000/auth/google/callback"
+    `https://memory-update-production.up.railway.app/auth/google/callback` // Changed this line
 );
 
 // Generate Google OAuth URL
@@ -162,6 +162,43 @@ app.get('/admin', (req, res) => {
 app.post("/editor", (req, res) => {
     compiler.flush(() => console.log("Deleted previous temporary files"));
     res.sendFile(path.join(__dirname, "public", "code.html"));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+app.get('/features', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'features.html'));
+});
+
+app.get('/contact', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'contact.html'));
+});
+
+app.get('/help', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'help.html'));
+});
+
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
+app.get('/terms', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+
+app.get('/pricing', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
+});
+
+// Catch-all route for SPA behavior
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
 function authenticateAdmin(req, res, next) {
@@ -548,7 +585,7 @@ app.post('/forgot-password', passwordResetLimiter, async (req, res) => {
             { upsert: true }
         );
 
-        const resetLink = `http://localhost:${PORT}/reset-password?token=${token}`;
+        const resetLink = `https://memory-update-production.up.railway.app/reset-password?token=${token}`;
 
         const mailOptions = {
             from: `Code Editor <${process.env.EMAIL_USER}>`,
@@ -887,7 +924,7 @@ app.post('/api/frontend/save', async (req, res) => {
         res.json({
             success: true,
             projectId,
-            shareUrl: `http://localhost:${PORT}/frontend/${projectId}`,
+            shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectId}`,
             message: 'Project saved successfully'
         });
     } catch (error) {
