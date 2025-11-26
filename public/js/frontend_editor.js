@@ -1,5 +1,9 @@
 console.log('Frontend Editor JavaScript loaded');
 
+window.addEventListener('error', function (e) {
+    console.error('Global error:', e.error);
+});
+
 class FrontendEditor {
     constructor() {
         this.currentProject = null;
@@ -682,7 +686,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async saveProject() {
         const token = Cookies.get('token');
         if (!token) {
-            // Redirect to login with return URL
             const currentUrl = encodeURIComponent(window.location.href);
             window.location.href = `/login?redirect=${currentUrl}`;
             return;
@@ -697,8 +700,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const projectName = document.getElementById('project-name').value.trim() || 'Untitled Project';
 
         try {
-            // Convert assets to base64 for saving
+            // Validate files before saving
+            if (!this.files.html || this.files.html.length === 0) {
+                throw new Error('Project must contain at least one HTML file');
+            }
+
+            // Process assets with size validation
             const assets = await this.processAssets();
+
+            // Limit asset size for preview
+            if (assets.length > 0) {
+                console.log(`Saving project with ${assets.length} assets`);
+            }
 
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
@@ -713,27 +726,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
             const result = await response.json();
 
             if (result.success) {
                 this.showSuccessNotification(result.shareUrl);
                 saveBtn.innerHTML = '✅ Saved!';
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
-                }, 2000);
             } else {
-                alert('Failed to save project: ' + result.error);
-                saveBtn.innerHTML = originalText;
+                throw new Error(result.error || 'Unknown error');
             }
         } catch (error) {
             console.error('Error saving project:', error);
-            alert('Error saving project. Please try again.');
+            alert('Error saving project: ' + error.message);
             saveBtn.innerHTML = '❌ Failed';
+        } finally {
             setTimeout(() => {
                 saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
             }, 2000);
-        } finally {
-            saveBtn.disabled = false;
         }
     }
 

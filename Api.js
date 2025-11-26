@@ -26,12 +26,51 @@ const PORT = process.env.PORT || 3000;
 let db;
 let contactSubmissions;
 
+// Add this function to clean up corrupted project files
+function cleanupCorruptedProjects() {
+    try {
+        const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
+        let cleanedCount = 0;
+        
+        files.forEach(file => {
+            if (file.endsWith('.json')) {
+                const filePath = path.join(FRONTEND_STORAGE_DIR, file);
+                try {
+                    const content = fs.readFileSync(filePath, 'utf8');
+                    JSON.parse(content);
+                } catch (error) {
+                    console.log(`Cleaning up corrupted project file: ${file}`);
+                    fs.unlinkSync(filePath);
+                    cleanedCount++;
+                    
+                    // Also clean up associated assets
+                    const projectId = file.replace('.json', '');
+                    const assetDir = path.join(FRONTEND_STORAGE_DIR, 'assets', projectId);
+                    if (fs.existsSync(assetDir)) {
+                        fs.rmSync(assetDir, { recursive: true, force: true });
+                    }
+                }
+            }
+        });
+        
+        if (cleanedCount > 0) {
+            console.log(`✅ Cleaned up ${cleanedCount} corrupted project files`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up corrupted projects:', error);
+    }
+}
+
+// Call this function after initializing collections
 async function initializeCollections() {
     try {
         await connect();
         db = getDb();
         contactSubmissions = db.collection('contactSubmissions');
         console.log("Database collections initialized");
+        
+        // Clean up corrupted projects
+        cleanupCorruptedProjects();
     } catch (error) {
         console.error("Failed to initialize collections:", error);
         process.exit(1);
@@ -49,6 +88,11 @@ if (!fs.existsSync(FRONTEND_STORAGE_DIR)) {
 
 const frontendProjects = new Map();
 
+// Fix JWT secret
+if (!process.env.JWT_SECRET) {
+    console.warn('⚠️ JWT_SECRET not set, using fallback (unsafe for production!)');
+    process.env.JWT_SECRET = 'fallback-secret-key-change-in-production';
+}
 
 
 const options = {
@@ -58,8 +102,8 @@ const options = {
 compiler.init(options);
 
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true,  limit: '50mb'  }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/images', express.static(path.join(__dirname, "public", "images")));
 app.use('/js', express.static(path.join(__dirname, "public", "js")));
@@ -372,6 +416,7 @@ app.get('/check-compilers', (req, res) => {
         });
     });
 });
+
 
 
 function authenticateAdmin(req, res, next) {
@@ -1011,45 +1056,46 @@ app.delete('/delete-code/:id', authenticateToken, (req, res) => {
 app.post('/api/frontend/save', async (req, res) => {
     try {
         const { name, files, assets, html, css, js } = req.body;
+        
+        if (!name && !files && !html && !css && !js) {
+            return res.status(400).json({
+                success: false,
+                error: 'No project data provided'
+            });
+        }
+
         const projectId = uuidv4();
 
-        // Handle both old format (html, css, js) and new format (files object)
+        // Handle both formats with better validation
         let projectFiles;
         if (files && typeof files === 'object') {
-            // New format with multiple files
             projectFiles = {
-                html: files.html || [{ name: 'index.html', content: getDefaultHTML() }],
-                css: files.css || [{ name: 'style.css', content: getDefaultCSS() }],
-                js: files.js || [{ name: 'script.js', content: getDefaultJS() }],
-                assets: assets || []
+                html: Array.isArray(files.html) ? files.html : [{ name: 'index.html', content: getDefaultHTML() }],
+                css: Array.isArray(files.css) ? files.css : [{ name: 'style.css', content: getDefaultCSS() }],
+                js: Array.isArray(files.js) ? files.js : [{ name: 'script.js', content: getDefaultJS() }],
+                assets: Array.isArray(assets) ? assets : []
             };
         } else {
-            // Old format - convert to new format
             projectFiles = {
                 html: [{ name: 'index.html', content: html || getDefaultHTML() }],
                 css: [{ name: 'style.css', content: css || getDefaultCSS() }],
                 js: [{ name: 'script.js', content: js || getDefaultJS() }],
-                assets: assets || []
+                assets: Array.isArray(assets) ? assets : []
             };
         }
 
-        // Process and save assets to file system
+        // Process assets with size limits
         const processedAssets = await processAndSaveAssets(projectFiles.assets, projectId);
 
         const projectData = {
             id: projectId,
             name: name || 'Untitled Project',
-            files: {
-                html: projectFiles.html,
-                css: projectFiles.css,
-                js: projectFiles.js,
-                assets: processedAssets
-            },
+            files: projectFiles,
             createdAt: new Date(),
             updatedAt: new Date()
         };
 
-        // Save project data to file system
+        // Save project data
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
         fs.writeFileSync(projectPath, JSON.stringify(projectData, null, 2));
 
@@ -1305,38 +1351,63 @@ app.get('/frontend/:id', (req, res) => {
 
 app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
     try {
+        if (!fs.existsSync(FRONTEND_STORAGE_DIR)) {
+            return res.json([]);
+        }
+
         const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
-        const projects = files
-            .filter(file => file.endsWith('.json'))
-            .map(file => {
+        const projects = [];
+
+        for (const file of files) {
+            if (file.endsWith('.json')) {
                 try {
                     const filePath = path.join(FRONTEND_STORAGE_DIR, file);
-                    const projectData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                    return {
+                    const fileContent = fs.readFileSync(filePath, 'utf8');
+                    
+                    // Skip empty files
+                    if (!fileContent.trim()) {
+                        console.log(`Skipping empty file: ${file}`);
+                        continue;
+                    }
+                    
+                    const projectData = JSON.parse(fileContent);
+                    
+                    // Validate project structure
+                    if (!projectData.id || !projectData.files) {
+                        console.log(`Invalid project structure in: ${file}`);
+                        continue;
+                    }
+
+                    projects.push({
                         id: projectData.id,
-                        name: projectData.name,
-                        createdAt: projectData.createdAt,
-                        updatedAt: projectData.updatedAt,
+                        name: projectData.name || 'Untitled Project',
+                        createdAt: projectData.createdAt || new Date(),
+                        updatedAt: projectData.updatedAt || new Date(),
                         shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectData.id}`,
                         fileCount: {
-                            html: projectData.files.html.length,
-                            css: projectData.files.css.length,
-                            js: projectData.files.js.length,
-                            assets: projectData.files.assets.length
+                            html: projectData.files.html?.length || 0,
+                            css: projectData.files.css?.length || 0,
+                            js: projectData.files.js?.length || 0,
+                            assets: projectData.files.assets?.length || 0
                         }
-                    };
+                    });
                 } catch (error) {
-                    console.error(`Error processing project file ${file}:`, error);
-                    return null;
+                    console.error(`Error processing project file ${file}:`, error.message);
+                    // Continue with other files even if one fails
                 }
-            })
-            .filter(project => project !== null)
-            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            }
+        }
 
+        // Sort by updated date (newest first)
+        projects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        
         res.json(projects);
     } catch (error) {
         console.error('Error loading projects:', error);
-        res.status(500).json({ error: 'Failed to load projects' });
+        res.status(500).json({ 
+            error: 'Failed to load projects',
+            details: process.env.NODE_ENV === 'development' ? error.message : null
+        });
     }
 });
 
