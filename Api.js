@@ -69,7 +69,7 @@ app.use('/css', express.static(path.join(__dirname, "public", "css")));
 const oauth2Client = new google.auth.OAuth2(
     "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
     "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",
-    `https://memory-update-production.up.railway.app/auth/google/callback` // Changed this line
+    "https://memory-update-production.up.railway.app/auth/google/callback"
 );
 
 // Generate Google OAuth URL
@@ -164,6 +164,7 @@ app.post("/editor", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "code.html"));
 });
 
+// Serve all your HTML pages
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -196,10 +197,97 @@ app.get('/pricing', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
 });
 
-// Catch-all route for SPA behavior
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+// Google OAuth routes - MOVED BEFORE CATCH-ALL
+app.get('/auth/google', (req, res) => {
+    const authUrl = getGoogleAuthURL();
+    res.redirect(authUrl);
 });
+
+// Google OAuth callback route
+app.get('/auth/google/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+
+        if (!code) {
+            return res.status(400).json({ error: 'Authorization code missing' });
+        }
+
+        // Exchange authorization code for access token
+        const { tokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(tokens);
+
+        // Get user info
+        const oauth2 = google.oauth2({
+            auth: oauth2Client,
+            version: 'v2'
+        });
+
+        const { data } = await oauth2.userinfo.get();
+
+        // Check if user exists in your database
+        const db = getDb();
+        const users = db.collection('users');
+
+        let user = await users.findOne({ email: data.email });
+
+        if (!user) {
+            // Create new user
+            const newUser = {
+                email: data.email,
+                name: data.name,
+                googleId: data.id,
+                picture: data.picture,
+                createdAt: new Date(),
+                isGoogleAuth: true
+            };
+
+            const result = await users.insertOne(newUser);
+            user = { ...newUser, _id: result.insertedId };
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+            {
+                userId: user._id,
+                email: user.email
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Redirect to editor with token
+        res.redirect(`/frontend-editor?token=${token}`);
+
+    } catch (error) {
+        console.error('Google OAuth callback error:', error);
+        res.status(500).send('Authentication failed. Please try again.');
+    }
+});
+
+// Debug routes
+app.get('/debug-oauth', (req, res) => {
+    const authUrl = getGoogleAuthURL();
+    res.json({
+        oauthConfigured: true,
+        authUrl: authUrl,
+        redirectUri: "https://memory-update-production.up.railway.app/auth/google/callback",
+        clientId: "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
+        message: "Visit /auth/google to test OAuth"
+    });
+});
+
+app.get('/test-auth', (req, res) => {
+    res.json({
+        message: "Auth endpoints are working",
+        endpoints: {
+            googleAuth: "/auth/google",
+            googleCallback: "/auth/google/callback",
+            debug: "/debug-oauth"
+        }
+    });
+});
+
+
 
 function authenticateAdmin(req, res, next) {
     const token = req.headers.authorization?.split(' ')[1];
@@ -653,73 +741,6 @@ app.post('/reset-password', async (req, res) => {
     }
 });
 
-// Google OAuth routes
-app.get('/auth/google', (req, res) => {
-    const authUrl = getGoogleAuthURL();
-    res.redirect(authUrl);
-});
-
-// Google OAuth callback route
-app.get('/auth/google/callback', async (req, res) => {
-    try {
-        const { code } = req.query;
-
-        if (!code) {
-            return res.status(400).json({ error: 'Authorization code missing' });
-        }
-
-        // Exchange authorization code for access token
-        const { tokens } = await oauth2Client.getToken(code);
-        oauth2Client.setCredentials(tokens);
-
-        // Get user info
-        const oauth2 = google.oauth2({
-            auth: oauth2Client,
-            version: 'v2'
-        });
-
-        const { data } = await oauth2.userinfo.get();
-
-        // Check if user exists in your database
-        const db = getDb();
-        const users = db.collection('users');
-
-        let user = await users.findOne({ email: data.email });
-
-        if (!user) {
-            // Create new user
-            const newUser = {
-                email: data.email,
-                name: data.name,
-                googleId: data.id,
-                picture: data.picture,
-                createdAt: new Date(),
-                isGoogleAuth: true
-            };
-
-            const result = await users.insertOne(newUser);
-            user = { ...newUser, _id: result.insertedId };
-        }
-
-        // Generate JWT token
-        const token = jwt.sign(
-            {
-                userId: user._id,
-                email: user.email
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        // Redirect to editor with token
-        res.redirect(`/frontend-editor?token=${token}`);
-
-    } catch (error) {
-        console.error('Google OAuth callback error:', error);
-        res.status(500).send('Authentication failed. Please try again.');
-    }
-});
-
 app.post('/logout', authenticateToken, (req, res) => {
     res.json({
         success: true,
@@ -996,7 +1017,7 @@ app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
                     name: projectData.name,
                     createdAt: projectData.createdAt,
                     updatedAt: projectData.updatedAt,
-                    shareUrl: `http://localhost:${PORT}/frontend/${projectData.id}`
+                    shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectData.id}`,
                 };
             })
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -1225,6 +1246,10 @@ async function sendDeletionEmail(ticket) {
         console.error('Error sending deletion email:', error);
     }
 }
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
 
 // WebSocket connection handling
 wss.on('connection', (ws) => {
