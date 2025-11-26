@@ -31,7 +31,7 @@ function cleanupCorruptedProjects() {
     try {
         const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
         let cleanedCount = 0;
-        
+
         files.forEach(file => {
             if (file.endsWith('.json')) {
                 const filePath = path.join(FRONTEND_STORAGE_DIR, file);
@@ -42,7 +42,7 @@ function cleanupCorruptedProjects() {
                     console.log(`Cleaning up corrupted project file: ${file}`);
                     fs.unlinkSync(filePath);
                     cleanedCount++;
-                    
+
                     // Also clean up associated assets
                     const projectId = file.replace('.json', '');
                     const assetDir = path.join(FRONTEND_STORAGE_DIR, 'assets', projectId);
@@ -52,13 +52,138 @@ function cleanupCorruptedProjects() {
                 }
             }
         });
-        
+
         if (cleanedCount > 0) {
             console.log(`✅ Cleaned up ${cleanedCount} corrupted project files`);
         }
     } catch (error) {
         console.error('Error cleaning up corrupted projects:', error);
     }
+}
+
+// Add this function to completely reset corrupted projects
+function resetCorruptedProjects() {
+    try {
+        console.log('🧹 Starting project cleanup...');
+
+        if (!fs.existsSync(FRONTEND_STORAGE_DIR)) {
+            fs.mkdirSync(FRONTEND_STORAGE_DIR, { recursive: true });
+            return;
+        }
+
+        const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
+        let cleanedCount = 0;
+
+        files.forEach(file => {
+            if (file.endsWith('.json')) {
+                const filePath = path.join(FRONTEND_STORAGE_DIR, file);
+                try {
+                    const content = fs.readFileSync(filePath, 'utf8');
+                    const projectData = JSON.parse(content);
+
+                    // Check if project has required structure
+                    if (!projectData.id || !projectData.files ||
+                        !projectData.files.html || !projectData.files.css || !projectData.files.js) {
+                        throw new Error('Invalid project structure');
+                    }
+
+                    console.log(`✅ Valid project: ${file}`);
+                } catch (error) {
+                    console.log(`🗑️ Removing corrupted project: ${file}`);
+                    fs.unlinkSync(filePath);
+                    cleanedCount++;
+
+                    // Clean up assets
+                    const projectId = file.replace('.json', '');
+                    const assetDir = path.join(FRONTEND_STORAGE_DIR, 'assets', projectId);
+                    if (fs.existsSync(assetDir)) {
+                        fs.rmSync(assetDir, { recursive: true, force: true });
+                    }
+                }
+            }
+        });
+
+        console.log(`✅ Cleanup completed: ${cleanedCount} corrupted files removed`);
+
+        // Create a sample valid project for testing
+        createSampleProject();
+
+    } catch (error) {
+        console.error('Error during project cleanup:', error);
+    }
+}
+
+// Create a sample valid project
+function createSampleProject() {
+    const sampleProjectId = 'sample-project-' + Date.now();
+    const sampleProject = {
+        id: sampleProjectId,
+        name: 'Sample Project',
+        files: {
+            html: [{
+                name: 'index.html',
+                content: `<!DOCTYPE html>
+<html>
+<head>
+    <title>Sample Project</title>
+</head>
+<body>
+    <h1>Welcome to Frontend Playground!</h1>
+    <p>This is a sample project.</p>
+    <button onclick="showMessage()">Click Me</button>
+    <div id="output"></div>
+</body>
+</html>`
+            }],
+            css: [{
+                name: 'style.css',
+                content: `body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    color: white;
+}
+
+button {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+}`
+            }],
+            js: [{
+                name: 'script.js',
+                content: `function showMessage() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<p>Hello from JavaScript! 🎉</p>';
+    output.style.background = 'rgba(255,255,255,0.1)';
+    output.style.padding = '20px';
+    output.style.borderRadius = '10px';
+    output.style.marginTop = '20px';
+}
+
+console.log('Sample project loaded!');`
+            }],
+            assets: []
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+
+    const projectPath = path.join(FRONTEND_STORAGE_DIR, `${sampleProjectId}.json`);
+    fs.writeFileSync(projectPath, JSON.stringify(sampleProject, null, 2));
+    console.log('✅ Sample project created for testing');
 }
 
 // Call this function after initializing collections
@@ -68,9 +193,9 @@ async function initializeCollections() {
         db = getDb();
         contactSubmissions = db.collection('contactSubmissions');
         console.log("Database collections initialized");
-        
-        // Clean up corrupted projects
-        cleanupCorruptedProjects();
+
+        // Reset corrupted projects
+        resetCorruptedProjects();
     } catch (error) {
         console.error("Failed to initialize collections:", error);
         process.exit(1);
@@ -103,7 +228,7 @@ compiler.init(options);
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true,  limit: '50mb'  }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/images', express.static(path.join(__dirname, "public", "images")));
 app.use('/js', express.static(path.join(__dirname, "public", "js")));
@@ -246,7 +371,7 @@ app.get('/auth/google', (req, res) => {
     try {
         const { redirect } = req.query;
         console.log('🔵 [GOOGLE OAUTH] Initiated, redirect:', redirect || 'none');
-        
+
         // Generate auth URL with state parameter for redirect
         const authUrl = oauth2Client.generateAuthUrl({
             access_type: 'offline',
@@ -258,10 +383,10 @@ app.get('/auth/google', (req, res) => {
             // Include redirect URL in state parameter
             state: redirect ? Buffer.from(JSON.stringify({ redirect })).toString('base64') : ''
         });
-        
+
         console.log('🔵 [GOOGLE OAUTH] Redirecting to Google');
         res.redirect(authUrl);
-        
+
     } catch (error) {
         console.error('🔴 [GOOGLE OAUTH] Initiation error:', error);
         res.redirect('/login?error=oauth_failed');
@@ -1056,7 +1181,7 @@ app.delete('/delete-code/:id', authenticateToken, (req, res) => {
 app.post('/api/frontend/save', async (req, res) => {
     try {
         const { name, files, assets, html, css, js } = req.body;
-        
+
         if (!name && !files && !html && !css && !js) {
             return res.status(400).json({
                 success: false,
@@ -1107,12 +1232,14 @@ app.post('/api/frontend/save', async (req, res) => {
         });
     } catch (error) {
         console.error('Error saving frontend project:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            error: 'Failed to save project: ' + error.message 
+            error: 'Failed to save project: ' + error.message
         });
     }
 });
+
+
 
 // Helper function to process and save assets
 async function processAndSaveAssets(assets, projectId) {
@@ -1122,7 +1249,7 @@ async function processAndSaveAssets(assets, projectId) {
 
     const processedAssets = [];
     const assetDir = path.join(FRONTEND_STORAGE_DIR, 'assets', projectId);
-    
+
     // Create asset directory if it doesn't exist
     if (!fs.existsSync(assetDir)) {
         fs.mkdirSync(assetDir, { recursive: true });
@@ -1137,15 +1264,15 @@ async function processAndSaveAssets(assets, projectId) {
                     const mimeType = matches[1];
                     const base64Data = matches[2];
                     const buffer = Buffer.from(base64Data, 'base64');
-                    
+
                     // Determine file extension from mime type
                     const extension = mimeType.split('/')[1] || 'bin';
                     const fileName = `${uuidv4()}.${extension}`;
                     const filePath = path.join(assetDir, fileName);
-                    
+
                     // Save file to disk
                     fs.writeFileSync(filePath, buffer);
-                    
+
                     processedAssets.push({
                         name: asset.name,
                         fileName: fileName,
@@ -1245,9 +1372,9 @@ app.get('/api/frontend/assets/:projectId/:fileName', (req, res) => {
     try {
         const { projectId, fileName } = req.params;
         const assetPath = path.join(FRONTEND_STORAGE_DIR, 'assets', projectId, fileName);
-        
+
         console.log('🔍 Looking for asset:', assetPath);
-        
+
         if (!fs.existsSync(assetPath)) {
             console.log('❌ Asset not found:', assetPath);
             return res.status(404).json({ error: 'Asset not found' });
@@ -1283,7 +1410,7 @@ app.get('/api/frontend/project/:id', (req, res) => {
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-        
+
         // Convert to old format for backward compatibility
         const mainHtml = projectData.files.html.find(file => file.name === 'index.html') || projectData.files.html[0];
         const mainCss = projectData.files.css.find(file => file.name === 'style.css') || projectData.files.css[0];
@@ -1363,15 +1490,15 @@ app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
                 try {
                     const filePath = path.join(FRONTEND_STORAGE_DIR, file);
                     const fileContent = fs.readFileSync(filePath, 'utf8');
-                    
+
                     // Skip empty files
                     if (!fileContent.trim()) {
                         console.log(`Skipping empty file: ${file}`);
                         continue;
                     }
-                    
+
                     const projectData = JSON.parse(fileContent);
-                    
+
                     // Validate project structure
                     if (!projectData.id || !projectData.files) {
                         console.log(`Invalid project structure in: ${file}`);
@@ -1400,11 +1527,11 @@ app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
 
         // Sort by updated date (newest first)
         projects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        
+
         res.json(projects);
     } catch (error) {
         console.error('Error loading projects:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to load projects',
             details: process.env.NODE_ENV === 'development' ? error.message : null
         });
@@ -1424,7 +1551,7 @@ app.delete('/api/frontend/project/:id', authenticateToken, async (req, res) => {
 
         // Load project data to get asset information
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-        
+
         // Delete the project file
         fs.unlinkSync(projectPath);
 
@@ -1802,7 +1929,7 @@ wss.on('connection', (ws) => {
                 tempFiles.push(filename);
                 console.log('📝 [DEBUG] Python file created:', filename);
 
-                command = 'python3';  
+                command = 'python3';
                 args = [filename];
                 console.log('⚙️ [DEBUG] Python execute command:', command, args);
                 break;

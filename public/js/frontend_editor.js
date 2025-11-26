@@ -6,6 +6,8 @@ window.addEventListener('error', function (e) {
 
 class FrontendEditor {
     constructor() {
+        console.log('🚀 Frontend Editor Initializing...');
+
         this.currentProject = null;
         this.files = {
             html: [{ name: 'index.html', content: this.getDefaultHTML() }],
@@ -14,6 +16,18 @@ class FrontendEditor {
             assets: []
         };
         this.activeFile = { type: 'html', name: 'index.html' };
+
+        // Add message listener for preview
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'preview-ready') {
+                console.log('✅ Preview loaded successfully');
+            } else if (event.data.type === 'preview-error') {
+                console.error('❌ Preview error:', event.data.error);
+            } else if (event.data.type === 'console') {
+                console[event.data.method]('Preview:', ...event.data.args);
+            }
+        });
+
         this.init();
     }
 
@@ -547,133 +561,115 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     updatePreview() {
-        const htmlFiles = this.files.html;
-        const cssFiles = this.files.css;
-        const jsFiles = this.files.js;
-
-        // Combine all files of each type
-        const combinedHTML = htmlFiles.map(file => file.content).join('\n');
-        const combinedCSS = cssFiles.map(file => file.content).join('\n');
-        const combinedJS = jsFiles.map(file => file.content).join('\n');
+        console.log('🔄 Updating preview...');
 
         const previewFrame = document.getElementById('preview-frame');
-        const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        if (!previewFrame) {
+            console.error('❌ Preview frame not found');
+            return;
+        }
 
-        // Process assets for preview - convert to data URLs
-        const assetMap = {};
-        this.files.assets.forEach(asset => {
-            if (asset.url && asset.url.startsWith('blob:')) {
-                assetMap[asset.name] = asset.url;
-            } else if (asset.data) {
-                assetMap[asset.name] = asset.data;
+        try {
+            // Get all file contents
+            const htmlContent = this.files.html.map(file => file.content).join('\n');
+            const cssContent = this.files.css.map(file => file.content).join('\n');
+            const jsContent = this.files.js.map(file => file.content).join('\n');
+
+            // Create the preview document
+            const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
+
+            previewDocument.open();
+            previewDocument.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview</title>
+    <style>
+        ${cssContent}
+        
+        /* Base styles for preview */
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        /* Error boundary styling */
+        .preview-error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px;
+            border-left: 4px solid #c33;
+        }
+    </style>
+</head>
+<body>
+    ${htmlContent}
+    
+    <script>
+        // Error handling for preview
+        window.addEventListener('error', function(e) {
+            console.error('Preview Error:', e.error);
+            // Send error to parent
+            if (window.parent) {
+                window.parent.postMessage({
+                    type: 'preview-error',
+                    error: e.error?.message || 'Unknown error',
+                    stack: e.error?.stack
+                }, '*');
             }
         });
+        
+        // Console redirection
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+        
+        ['log', 'error', 'warn'].forEach(method => {
+            console[method] = function(...args) {
+                originalConsole[method].apply(console, args);
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'console',
+                        method: method,
+                        args: args.map(arg => 
+                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                        )
+                    }, '*');
+                }
+            };
+        });
+        
+        // Load JavaScript
+        try {
+            ${jsContent}
+        } catch (jsError) {
+            console.error('JavaScript Error:', jsError);
+        }
+        
+        // Notify parent that preview is ready
+        setTimeout(() => {
+            if (window.parent) {
+                window.parent.postMessage({ type: 'preview-ready' }, '*');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
+        `);
+            previewDocument.close();
 
-        previewDocument.open();
-        previewDocument.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Preview</title>
-            <style>
-                ${combinedCSS}
-                
-                /* Fix for image loading in preview */
-                img {
-                    max-width: 100%;
-                    height: auto;
-                }
-            </style>
-            <script>
-                // Asset handling for preview
-                const previewAssets = ${JSON.stringify(assetMap)};
-                
-                function getAssetUrl(filename) {
-                    return previewAssets[filename] || '';
-                }
-                
-                // Replace asset references in HTML content
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Replace image sources
-                    const images = document.getElementsByTagName('img');
-                    for (let img of images) {
-                        const src = img.getAttribute('src');
-                        if (src && previewAssets[src]) {
-                            img.src = previewAssets[src];
-                        }
-                    }
-                    
-                    // Replace background images
-                    const elements = document.querySelectorAll('*');
-                    for (let el of elements) {
-                        const style = window.getComputedStyle(el);
-                        const bgImage = style.backgroundImage;
-                        if (bgImage && bgImage !== 'none') {
-                            const urlMatch = bgImage.match(/url\(["']?(.*?)["']?\)/);
-                            if (urlMatch && urlMatch[1] && previewAssets[urlMatch[1]]) {
-                                el.style.backgroundImage = \`url("\${previewAssets[urlMatch[1]]}")\`;
-                            }
-                        }
-                    }
-                });
-            </script>
-        </head>
-        <body>
-            ${combinedHTML}
-            <script>
-                // Error handling for preview
-                window.addEventListener('error', function(e) {
-                    console.error('Preview Error:', e.error);
-                });
-                
-                // Console capture
-                (function() {
-                    const originalLog = console.log;
-                    const originalError = console.error;
-                    const originalWarn = console.warn;
-                    
-                    console.log = function(...args) {
-                        originalLog.apply(console, args);
-                        window.parent.postMessage({ 
-                            type: 'console', 
-                            method: 'log', 
-                            args: args.map(arg => 
-                                typeof arg === 'object' ? JSON.stringify(arg) : arg
-                            ) 
-                        }, '*');
-                    };
-                    
-                    console.error = function(...args) {
-                        originalError.apply(console, args);
-                        window.parent.postMessage({ 
-                            type: 'console', 
-                            method: 'error', 
-                            args: args.map(arg => 
-                                typeof arg === 'object' ? JSON.stringify(arg) : arg
-                            ) 
-                        }, '*');
-                    };
-                    
-                    console.warn = function(...args) {
-                        originalWarn.apply(console, args);
-                        window.parent.postMessage({ 
-                            type: 'console', 
-                            method: 'warn', 
-                            args: args.map(arg => 
-                                typeof arg === 'object' ? JSON.stringify(arg) : arg
-                            ) 
-                        }, '*');
-                    };
-                })();
-                
-                ${combinedJS}
-            </script>
-        </body>
-        </html>
-    `);
-        previewDocument.close();
+            console.log('✅ Preview updated successfully');
+
+        } catch (error) {
+            console.error('❌ Error updating preview:', error);
+        }
 
         // Listen for console messages from preview
         window.addEventListener('message', (event) => {
@@ -799,6 +795,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            console.log('📂 Loading projects...');
+
             const response = await fetch('/api/frontend/projects', {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -806,23 +804,43 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to load projects');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const projects = await response.json();
+            console.log(`📁 Loaded ${projects.length} projects`);
+
             this.displayProjects(projects);
             document.getElementById('projects-modal').style.display = 'block';
+
         } catch (error) {
-            console.error('Error loading projects:', error);
-            alert('Error loading projects. Please try again.');
+            console.error('❌ Error loading projects:', error);
+            alert('Error loading projects: ' + error.message);
+
+            // Show empty state
+            this.displayProjects([]);
+            document.getElementById('projects-modal').style.display = 'block';
         }
     }
 
     displayProjects(projects) {
         const projectsList = document.getElementById('projects-list');
 
-        if (projects.length === 0) {
-            projectsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No projects found. Create your first project!</p>';
+        if (!projectsList) {
+            console.error('❌ Projects list element not found');
+            return;
+        }
+
+        if (!projects || projects.length === 0) {
+            projectsList.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 40px; color: #666;">
+                <h3>No Projects Found</h3>
+                <p>Create your first project to get started!</p>
+                <button onclick="frontendEditor.hideModal()" class="btn btn-primary" style="margin-top: 15px;">
+                    Create New Project
+                </button>
+            </div>
+        `;
             return;
         }
 
@@ -831,29 +849,34 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="project-info">
                 <h3>${this.escapeHtml(project.name)}</h3>
                 <p class="project-meta">
-                    <strong>Created:</strong> ${new Date(project.createdAt).toLocaleDateString()} • 
-                    <strong>Updated:</strong> ${new Date(project.updatedAt).toLocaleDateString()}
+                    Created: ${new Date(project.createdAt).toLocaleDateString()} • 
+                    Files: ${project.fileCount?.html || 0} HTML, 
+                    ${project.fileCount?.css || 0} CSS, 
+                    ${project.fileCount?.js || 0} JS
                 </p>
                 <div class="project-link-container">
-                    <span class="project-link-label">Share Link:</span>
-                    <div class="link-copy-group">
-                        <input type="text" class="project-link-input" value="${this.escapeHtml(project.shareUrl)}" readonly>
-                        <button class="copy-link-btn" onclick="frontendEditor.copyProjectLink('${this.escapeHtml(project.shareUrl)}', this)">
-                            📋 Copy
-                        </button>
-                    </div>
+                    <input type="text" class="project-link-input" 
+                           value="${this.escapeHtml(project.shareUrl)}" readonly>
+                    <button class="copy-link-btn" 
+                            onclick="frontendEditor.copyProjectLink('${this.escapeHtml(project.shareUrl)}', this)">
+                        📋 Copy
+                    </button>
                 </div>
             </div>
             <div class="project-actions">
-                <button class="btn btn-open" onclick="frontendEditor.openProject('${this.escapeHtml(project.id)}')">
+                <button class="btn btn-open" 
+                        onclick="frontendEditor.openProject('${this.escapeHtml(project.id)}')">
                     Open
                 </button>
-                <button class="btn btn-delete" onclick="frontendEditor.deleteProject('${this.escapeHtml(project.id)}', '${this.escapeHtml(project.name)}')">
+                <button class="btn btn-delete" 
+                        onclick="frontendEditor.deleteProject('${this.escapeHtml(project.id)}', '${this.escapeHtml(project.name)}')">
                     Delete
                 </button>
             </div>
         </div>
     `).join('');
+
+        console.log(`✅ Displayed ${projects.length} projects`);
     }
 
     copyProjectLink(link, buttonElement) {
