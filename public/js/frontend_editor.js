@@ -177,17 +177,44 @@ document.addEventListener('DOMContentLoaded', function() {
     renderAssets() {
         const container = document.getElementById('asset-files');
         if (this.files.assets.length === 0) {
-            container.innerHTML = '<div style="padding: 10px; color: #a0aec0; font-size: 12px;">No assets uploaded</div>';
+            container.innerHTML = '<div style="padding: 10px; color: #a0aec0; font-size: 12px; text-align: center;">No assets uploaded</div>';
             return;
         }
 
         container.innerHTML = this.files.assets.map(asset => `
-            <div class="asset-item">
-                <img src="${asset.url}" alt="${asset.name}" class="asset-preview">
-                <span style="flex: 1; font-size: 12px;">${asset.name}</span>
-                <button class="delete-btn" onclick="frontendEditor.deleteAsset('${asset.name}')">🗑️</button>
+        <div class="asset-item" data-asset="${asset.name}">
+            <div class="asset-preview-container">
+                <img src="${asset.url}" alt="${asset.name}" 
+                     class="asset-preview" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                <div class="asset-fallback" style="display: none;">📁 ${asset.name}</div>
             </div>
-        `).join('');
+            <div class="asset-info">
+                <span class="asset-name" title="${asset.name}">${asset.name}</span>
+                <div class="asset-actions">
+                    <button class="copy-asset-btn" onclick="frontendEditor.copyAssetName('${asset.name}')" title="Copy name">
+                        📋
+                    </button>
+                    <button class="delete-btn" onclick="frontendEditor.deleteAsset('${asset.name}')" title="Delete">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    // Add this helper method
+    copyAssetName(assetName) {
+        navigator.clipboard.writeText(assetName).then(() => {
+            // Show quick feedback
+            const btn = event.target;
+            const original = btn.innerHTML;
+            btn.innerHTML = '✅';
+            setTimeout(() => {
+                btn.innerHTML = original;
+            }, 1000);
+        });
     }
 
     openFile(type, name) {
@@ -370,25 +397,56 @@ document.addEventListener('DOMContentLoaded', function() {
         const nameInput = document.getElementById('asset-name');
 
         const file = fileInput.files[0];
-        if (!file) return;
+        if (!file) {
+            alert('Please select a file to upload');
+            return;
+        }
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Please upload a valid image file (JPEG, PNG, GIF, SVG, WebP)');
+            return;
+        }
+
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            return;
+        }
 
         const fileName = nameInput.value.trim() || file.name;
 
-        // Simulate upload (you'll need to implement actual file upload)
-        const assetUrl = URL.createObjectURL(file);
+        // Check if asset with same name already exists
+        if (this.files.assets.find(asset => asset.name === fileName)) {
+            alert('An asset with this name already exists!');
+            return;
+        }
 
-        this.files.assets.push({
-            name: fileName,
-            url: assetUrl,
-            file: file
-        });
+        try {
+            // Convert to base64 for immediate preview
+            const base64Data = await this.fileToBase64(file);
 
-        // Update UI
-        this.renderAssets();
-        this.hideAllModals();
+            this.files.assets.push({
+                name: fileName,
+                url: base64Data, // Use base64 for immediate preview
+                file: file,
+                type: file.type
+            });
 
-        // Reset form
-        e.target.reset();
+            // Update UI
+            this.renderAssets();
+            this.hideAllModals();
+            this.updatePreview();
+
+            // Reset form
+            e.target.reset();
+
+            console.log('Asset uploaded successfully:', fileName);
+        } catch (error) {
+            console.error('Error uploading asset:', error);
+            alert('Error uploading asset. Please try again.');
+        }
     }
 
     deleteFile(type, name) {
@@ -485,76 +543,141 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     updatePreview() {
-    const htmlFiles = this.files.html;
-    const cssFiles = this.files.css;
-    const jsFiles = this.files.js;
+        const htmlFiles = this.files.html;
+        const cssFiles = this.files.css;
+        const jsFiles = this.files.js;
 
-    // Combine all files of each type
-    const combinedHTML = htmlFiles.map(file => file.content).join('\n');
-    const combinedCSS = cssFiles.map(file => file.content).join('\n');
-    const combinedJS = jsFiles.map(file => file.content).join('\n');
+        // Combine all files of each type
+        const combinedHTML = htmlFiles.map(file => file.content).join('\n');
+        const combinedCSS = cssFiles.map(file => file.content).join('\n');
+        const combinedJS = jsFiles.map(file => file.content).join('\n');
 
-    const previewFrame = document.getElementById('preview-frame');
-    const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        const previewFrame = document.getElementById('preview-frame');
+        const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
 
-    // Create asset mapping for local preview
-    const assetUrls = {};
-    this.files.assets.forEach(asset => {
-        assetUrls[asset.name] = asset.url;
-    });
+        // Process assets for preview - convert to data URLs
+        const assetMap = {};
+        this.files.assets.forEach(asset => {
+            if (asset.url && asset.url.startsWith('blob:')) {
+                assetMap[asset.name] = asset.url;
+            } else if (asset.data) {
+                assetMap[asset.name] = asset.data;
+            }
+        });
 
-    previewDocument.open();
-    previewDocument.write(`
+        previewDocument.open();
+        previewDocument.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <style>${combinedCSS}</style>
-            <script>
-                // Make assets available in preview
-                window.previewAssets = ${JSON.stringify(assetUrls)};
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Preview</title>
+            <style>
+                ${combinedCSS}
                 
-                // Helper function to get asset URLs
-                function getAssetUrl(filename) {
-                    return window.previewAssets[filename] || filename;
+                /* Fix for image loading in preview */
+                img {
+                    max-width: 100%;
+                    height: auto;
                 }
+            </style>
+            <script>
+                // Asset handling for preview
+                const previewAssets = ${JSON.stringify(assetMap)};
+                
+                function getAssetUrl(filename) {
+                    return previewAssets[filename] || '';
+                }
+                
+                // Replace asset references in HTML content
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Replace image sources
+                    const images = document.getElementsByTagName('img');
+                    for (let img of images) {
+                        const src = img.getAttribute('src');
+                        if (src && previewAssets[src]) {
+                            img.src = previewAssets[src];
+                        }
+                    }
+                    
+                    // Replace background images
+                    const elements = document.querySelectorAll('*');
+                    for (let el of elements) {
+                        const style = window.getComputedStyle(el);
+                        const bgImage = style.backgroundImage;
+                        if (bgImage && bgImage !== 'none') {
+                            const urlMatch = bgImage.match(/url\(["']?(.*?)["']?\)/);
+                            if (urlMatch && urlMatch[1] && previewAssets[urlMatch[1]]) {
+                                el.style.backgroundImage = \`url("\${previewAssets[urlMatch[1]]}")\`;
+                            }
+                        }
+                    }
+                });
             </script>
         </head>
         <body>
             ${combinedHTML}
             <script>
-                // Override console.log to see errors in parent
-                const originalLog = console.log;
-                const originalError = console.error;
-                
-                console.log = function(...args) {
-                    originalLog.apply(console, args);
-                    window.parent.postMessage({ type: 'console', method: 'log', args: args }, '*');
-                };
-                
-                console.error = function(...args) {
-                    originalError.apply(console, args);
-                    window.parent.postMessage({ type: 'console', method: 'error', args: args }, '*');
-                };
-                
-                // Catch and display errors
+                // Error handling for preview
                 window.addEventListener('error', function(e) {
                     console.error('Preview Error:', e.error);
                 });
+                
+                // Console capture
+                (function() {
+                    const originalLog = console.log;
+                    const originalError = console.error;
+                    const originalWarn = console.warn;
+                    
+                    console.log = function(...args) {
+                        originalLog.apply(console, args);
+                        window.parent.postMessage({ 
+                            type: 'console', 
+                            method: 'log', 
+                            args: args.map(arg => 
+                                typeof arg === 'object' ? JSON.stringify(arg) : arg
+                            ) 
+                        }, '*');
+                    };
+                    
+                    console.error = function(...args) {
+                        originalError.apply(console, args);
+                        window.parent.postMessage({ 
+                            type: 'console', 
+                            method: 'error', 
+                            args: args.map(arg => 
+                                typeof arg === 'object' ? JSON.stringify(arg) : arg
+                            ) 
+                        }, '*');
+                    };
+                    
+                    console.warn = function(...args) {
+                        originalWarn.apply(console, args);
+                        window.parent.postMessage({ 
+                            type: 'console', 
+                            method: 'warn', 
+                            args: args.map(arg => 
+                                typeof arg === 'object' ? JSON.stringify(arg) : arg
+                            ) 
+                        }, '*');
+                    };
+                })();
                 
                 ${combinedJS}
             </script>
         </body>
         </html>
     `);
-    previewDocument.close();
-    
-    // Listen for console messages from preview
-    window.addEventListener('message', (event) => {
-        if (event.data.type === 'console') {
-            console[event.data.method](...event.data.args);
-        }
-    });
-}
+        previewDocument.close();
+
+        // Listen for console messages from preview
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'console') {
+                console[event.data.method]('Preview:', ...event.data.args);
+            }
+        });
+    }
 
     async saveProject() {
         const token = Cookies.get('token');
