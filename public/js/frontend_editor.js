@@ -1,293 +1,341 @@
-console.log('🔧 Frontend Editor JavaScript loading...');
+console.log('Frontend Editor JavaScript loaded');
 
 class FrontendEditor {
     constructor() {
-        console.log('🚀 Frontend Editor Initializing...');
-        
         this.currentProject = null;
-        this.files = {
-            html: [{ name: 'index.html', content: this.getDefaultHTML() }],
-            css: [{ name: 'style.css', content: this.getDefaultCSS() }],
-            js: [{ name: 'script.js', content: this.getDefaultJS() }],
-            assets: []
-        };
-        this.activeFile = { type: 'html', name: 'index.html' };
-
-        console.log('📁 Initial files:', this.files);
-
-        // Add message listener for preview with better error handling
-        window.addEventListener('message', (event) => {
-            console.log('📨 Message received from preview:', event.data);
-            if (event.data.type === 'preview-ready') {
-                console.log('✅ Preview loaded successfully');
-            } else if (event.data.type === 'preview-error') {
-                console.error('❌ Preview error:', event.data.error);
-            } else if (event.data.type === 'console') {
-                console[event.data.method]('Preview:', ...event.data.args);
-            }
-        });
-
         this.init();
     }
 
     init() {
-        console.log('🔧 Setting up editor...');
         this.bindEvents();
-        this.renderFileTree();
-        this.createEditorTab('html', 'index.html');
         this.updatePreview();
         this.checkAuth();
-        console.log('✅ Editor setup complete');
+    }
+
+    bindEvents() {
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.switchTab(e.target.dataset.tab);
+            });
+        });
+
+        // Editor changes
+        document.getElementById('html-editor').addEventListener('input', () => this.updatePreview());
+        document.getElementById('css-editor').addEventListener('input', () => this.updatePreview());
+        document.getElementById('js-editor').addEventListener('input', () => this.updatePreview());
+
+        // Save project
+        document.getElementById('save-project').addEventListener('click', () => this.saveProject());
+
+        // Projects modal
+        document.getElementById('show-projects').addEventListener('click', () => this.showProjects());
+        document.querySelector('.modal-close').addEventListener('click', () => this.hideModal());
+        document.getElementById('projects-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) this.hideModal();
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => this.logout());
+    }
+
+    switchTab(tabName) {
+        // Update active tab button
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update active tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
+        });
+
+        // Update preview when switching to preview tab
+        if (tabName === 'preview') {
+            this.updatePreview();
+        }
     }
 
     updatePreview() {
-        console.log('🔄 Updating preview...');
-        console.log('📝 Current HTML:', this.files.html[0].content.substring(0, 100) + '...');
+        const html = document.getElementById('html-editor').value;
+        const css = document.getElementById('css-editor').value;
+        const js = document.getElementById('js-editor').value;
 
         const previewFrame = document.getElementById('preview-frame');
-        if (!previewFrame) {
-            console.error('❌ Preview frame not found in DOM');
+        const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
+
+        previewDocument.open();
+        previewDocument.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>${css}</style>
+            </head>
+            <body>
+                ${html}
+                <script>${js}<\/script>
+            </body>
+            </html>
+        `);
+        previewDocument.close();
+    }
+
+    async saveProject() {
+        const token = Cookies.get('token');
+        if (!token) {
+            alert('Please login to save your project');
             return;
         }
 
+        const saveBtn = document.getElementById('save-project');
+        const originalText = saveBtn.innerHTML;
+
+        // Add saving state
+        saveBtn.innerHTML = '💾 Saving...';
+        saveBtn.classList.add('saving');
+        saveBtn.disabled = true;
+
+        const projectName = document.getElementById('project-name').value.trim() || 'Untitled Project';
+        const html = document.getElementById('html-editor').value;
+        const css = document.getElementById('css-editor').value;
+        const js = document.getElementById('js-editor').value;
+
         try {
-            // Get all file contents
-            const htmlContent = this.files.html.map(file => file.content).join('\n');
-            const cssContent = this.files.css.map(file => file.content).join('\n');
-            const jsContent = this.files.js.map(file => file.content).join('\n');
+            const response = await fetch('/api/frontend/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: projectName,
+                    html: html,
+                    css: css,
+                    js: js
+                })
+            });
 
-            console.log('📊 Content lengths - HTML:', htmlContent.length, 'CSS:', cssContent.length, 'JS:', jsContent.length);
+            const result = await response.json();
 
-            const previewDocument = previewFrame.contentDocument || previewFrame.contentWindow.document;
-            
-            // Clear any existing content
-            previewDocument.open();
-            
-            const previewHTML = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preview</title>
-    <style>
-        ${cssContent}
-        
-        /* Base styles for preview */
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: white;
-            color: black;
-        }
-        
-        /* Error boundary styling */
-        .preview-error {
-            background: #fee;
-            color: #c33;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 10px;
-            border-left: 4px solid #c33;
-        }
-        
-        /* Make sure iframe content is visible */
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-        }
-    </style>
-</head>
-<body>
-    <!-- Preview Content -->
-    ${htmlContent}
-    
-    <div id="preview-status" style="display: none; background: #4CAF50; color: white; padding: 10px; margin: 10px; border-radius: 5px;">
-        Preview Loaded Successfully
-    </div>
-    
-    <script>
-        console.log('🔧 Preview script starting...');
-        
-        // Show that preview is loaded
-        document.getElementById('preview-status').style.display = 'block';
-        
-        // Error handling for preview
-        window.addEventListener('error', function(e) {
-            console.error('❌ Preview Error:', e.error);
-            console.error('Error details:', e.message, 'at', e.filename, 'line', e.lineno);
-            
-            // Send error to parent
-            if (window.parent) {
-                window.parent.postMessage({
-                    type: 'preview-error',
-                    error: e.message,
-                    filename: e.filename,
-                    lineno: e.lineno
-                }, '*');
+            if (result.success) {
+                this.showSuccessNotification(result.shareUrl);
+                // Briefly show success state
+                saveBtn.innerHTML = '✅ Saved!';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                }, 2000);
+            } else {
+                alert('Failed to save project: ' + result.error);
+                saveBtn.innerHTML = originalText;
             }
-        });
-        
-        // Console redirection with better error handling
-        const originalConsole = {
-            log: console.log,
-            error: console.error,
-            warn: console.warn,
-            info: console.info
-        };
-        
-        ['log', 'error', 'warn', 'info'].forEach(method => {
-            console[method] = function(...args) {
-                originalConsole[method].apply(console, args);
-                if (window.parent) {
-                    try {
-                        window.parent.postMessage({
-                            type: 'console',
-                            method: method,
-                            args: args.map(arg => {
-                                try {
-                                    if (typeof arg === 'object') {
-                                        return JSON.stringify(arg, null, 2);
-                                    }
-                                    return String(arg);
-                                } catch (e) {
-                                    return '[Unserializable object]';
-                                }
-                            })
-                        }, '*');
-                    } catch (e) {
-                        originalConsole.error('Failed to send console message:', e);
-                    }
-                }
-            };
-        });
-        
-        // Load JavaScript with error handling
-        try {
-            console.log('📜 Executing JavaScript content...');
-            ${jsContent}
-        } catch (jsError) {
-            console.error('❌ JavaScript execution error:', jsError);
-        }
-        
-        // Notify parent that preview is ready
-        setTimeout(() => {
-            console.log('✅ Preview fully loaded');
-            if (window.parent) {
-                window.parent.postMessage({ 
-                    type: 'preview-ready',
-                    timestamp: Date.now()
-                }, '*');
-            }
-        }, 100);
-        
-        // Test that JavaScript is working
-        console.log('🧪 Testing JavaScript execution...');
-        if (typeof showAlert === 'function') {
-            console.log('✅ showAlert function is available');
-        } else {
-            console.log('⚠️ showAlert function not found');
-        }
-    </script>
-</body>
-</html>`;
-
-            console.log('📄 Writing preview HTML...');
-            previewDocument.write(previewHTML);
-            previewDocument.close();
-            
-            console.log('✅ Preview document written and closed');
-
         } catch (error) {
-            console.error('❌ Error updating preview:', error);
-            console.error('Error stack:', error.stack);
+            console.error('Error saving project:', error);
+            alert('Error saving project. Please try again.');
+            saveBtn.innerHTML = '❌ Failed';
+            setTimeout(() => {
+                saveBtn.innerHTML = originalText;
+            }, 2000);
+        } finally {
+            saveBtn.classList.remove('saving');
+            saveBtn.disabled = false;
         }
     }
 
-    // Update the showProjects method to add debugging
+    showSuccessNotification(shareUrl) {
+        // Copy URL to clipboard
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            const notification = document.getElementById('success-notification');
+            notification.style.display = 'flex';
+
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 4000);
+        });
+    }
+
     async showProjects() {
         const token = Cookies.get('token');
-        console.log('🔐 Token available:', !!token);
-        
         if (!token) {
             alert('Please login to view your projects');
             return;
         }
 
         try {
-            console.log('📂 Loading projects from API...');
-            
             const response = await fetch('/api/frontend/projects', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
 
-            console.log('📡 API Response status:', response.status, response.statusText);
-            
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error('Failed to load projects');
             }
 
             const projects = await response.json();
-            console.log(`📁 Loaded ${projects.length} projects:`, projects);
-            
             this.displayProjects(projects);
             document.getElementById('projects-modal').style.display = 'block';
-            
         } catch (error) {
-            console.error('❌ Error loading projects:', error);
-            alert('Error loading projects: ' + error.message);
-            
-            // Show empty state
-            this.displayProjects([]);
-            document.getElementById('projects-modal').style.display = 'block';
+            console.error('Error loading projects:', error);
+            alert('Error loading projects. Please try again.');
         }
     }
 
-    // Update the openProject method
-    async openProject(projectId) {
-        console.log('📂 Opening project:', projectId);
-        
+    displayProjects(projects) {
+        const projectsList = document.getElementById('projects-list');
+
+        if (projects.length === 0) {
+            projectsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No projects found. Create your first project!</p>';
+            return;
+        }
+
+        projectsList.innerHTML = projects.map(project => `
+        <div class="project-item">
+            <div class="project-info">
+                <h3>${this.escapeHtml(project.name)}</h3>
+                <p class="project-meta">
+                    <strong>Created:</strong> ${new Date(project.createdAt).toLocaleDateString()} • 
+                    <strong>Updated:</strong> ${new Date(project.updatedAt).toLocaleDateString()}
+                </p>
+                <div class="project-link-container">
+                    <span class="project-link-label">Share Link:</span>
+                    <div class="link-copy-group">
+                        <input type="text" class="project-link-input" value="${this.escapeHtml(project.shareUrl)}" readonly>
+                        <button class="copy-link-btn" onclick="frontendEditor.copyProjectLink('${this.escapeHtml(project.shareUrl)}', this)">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="project-actions">
+                <button class="btn btn-open" onclick="frontendEditor.openProject('${this.escapeHtml(project.id)}')">
+                    Open
+                </button>
+                <button class="btn btn-delete" onclick="frontendEditor.deleteProject('${this.escapeHtml(project.id)}', '${this.escapeHtml(project.name)}')">
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    copyProjectLink(link, buttonElement) {
+        navigator.clipboard.writeText(link).then(() => {
+            // Show success feedback
+            const originalText = buttonElement.textContent;
+            buttonElement.textContent = '✅ Copied!';
+            buttonElement.style.background = '#4CAF50';
+
+            setTimeout(() => {
+                buttonElement.textContent = originalText;
+                buttonElement.style.background = '';
+            }, 2000);
+
+            console.log('Link copied to clipboard:', link);
+        }).catch(err => {
+            console.error('Failed to copy link:', err);
+            alert('Failed to copy link. Please try again.');
+        });
+    }
+
+    async deleteProject(projectId, projectName) {
+        const token = Cookies.get('token');
+        if (!token) {
+            alert('Please login to delete projects');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+            return;
+        }
+
         try {
-            const response = await fetch(`/api/frontend/project/${projectId}`);
-            console.log('📡 Project API response status:', response.status);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load project: ${response.status}`);
-            }
-
-            const project = await response.json();
-            console.log('📋 Project data loaded:', project);
-
-            // Update project name
-            document.getElementById('project-name').value = project.name || 'Untitled Project';
-            console.log('📝 Project name set to:', project.name);
-
-            // Update file contents
-            this.files.html = [{ name: 'index.html', content: project.html || this.getDefaultHTML() }];
-            this.files.css = [{ name: 'style.css', content: project.css || this.getDefaultCSS() }];
-            this.files.js = [{ name: 'script.js', content: project.js || this.getDefaultJS() }];
-            
-            console.log('📁 Files updated:', {
-                htmlLength: this.files.html[0].content.length,
-                cssLength: this.files.css[0].content.length,
-                jsLength: this.files.js[0].content.length
+            const response = await fetch(`/api/frontend/project/${projectId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
-            // Update UI
-            this.renderFileTree();
+            if (response.ok) {
+                // Remove the project from the UI immediately
+                const projectElement = document.querySelector(`[onclick*="${projectId}"]`)?.closest('.project-item');
+                if (projectElement) {
+                    projectElement.style.opacity = '0.5';
+                    setTimeout(() => {
+                        projectElement.remove();
+                        // Refresh the projects list
+                        this.showProjects();
+                    }, 300);
+                }
+
+                // Show success message
+                this.showNotification(`Project "${projectName}" deleted successfully`);
+
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete project');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            alert('Error deleting project: ' + error.message);
+        }
+    }
+
+    showNotification(message) {
+        // Create a temporary notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10001;
+        animation: slideInRight 0.3s ease;
+    `;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+    async openProject(projectId) {
+        try {
+            const response = await fetch(`/api/frontend/project/${projectId}`);
+            const project = await response.json();
+
+            document.getElementById('project-name').value = project.name;
+            document.getElementById('html-editor').value = project.html;
+            document.getElementById('css-editor').value = project.css;
+            document.getElementById('js-editor').value = project.js;
+
+            this.hideModal();
             this.updatePreview();
             this.switchTab('preview');
-            this.hideModal();
-            
-            console.log('✅ Project opened successfully');
-
         } catch (error) {
-            console.error('❌ Error opening project:', error);
-            alert('Error opening project: ' + error.message);
+            console.error('Error opening project:', error);
+            alert('Error opening project. Please try again.');
         }
     }
 

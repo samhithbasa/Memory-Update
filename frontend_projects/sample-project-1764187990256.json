@@ -1,0 +1,27 @@
+{
+  "id": "sample-project-1764187990256",
+  "name": "Sample Project",
+  "files": {
+    "html": [
+      {
+        "name": "index.html",
+        "content": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Sample Project</title>\n</head>\n<body>\n    <h1>Welcome to Frontend Playground!</h1>\n    <p>This is a sample project.</p>\n    <button onclick=\"showMessage()\">Click Me</button>\n    <div id=\"output\"></div>\n</body>\n</html>"
+      }
+    ],
+    "css": [
+      {
+        "name": "style.css",
+        "content": "body {\n    font-family: Arial, sans-serif;\n    max-width: 800px;\n    margin: 0 auto;\n    padding: 20px;\n    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n    color: white;\n    min-height: 100vh;\n}\n\nh1 {\n    text-align: center;\n    color: white;\n}\n\nbutton {\n    background: #ff6b6b;\n    color: white;\n    border: none;\n    padding: 12px 24px;\n    border-radius: 25px;\n    cursor: pointer;\n    font-size: 16px;\n}"
+      }
+    ],
+    "js": [
+      {
+        "name": "script.js",
+        "content": "function showMessage() {\n    const output = document.getElementById('output');\n    output.innerHTML = '<p>Hello from JavaScript! 🎉</p>';\n    output.style.background = 'rgba(255,255,255,0.1)';\n    output.style.padding = '20px';\n    output.style.borderRadius = '10px';\n    output.style.marginTop = '20px';\n}\n\nconsole.log('Sample project loaded!');"
+      }
+    ],
+    "assets": []
+  },
+  "createdAt": "2025-11-26T20:13:10.256Z",
+  "updatedAt": "2025-11-26T20:13:10.256Z"
+}

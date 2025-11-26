@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="/css/frontend_editor.css">
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
 </head>
+
 <body>
     <header class="frontend-header">
         <div class="header-left">
@@ -18,149 +20,108 @@
                 💾 Save & Deploy
             </button>
             <button id="show-projects" class="btn btn-secondary">My Projects</button>
-            <button id="add-file" class="btn btn-secondary">➕ Add File</button>
-            <button id="upload-asset" class="btn btn-secondary">🖼️ Upload Asset</button>
             <button id="logout-btn" class="btn btn-logout">Logout</button>
         </div>
     </header>
 
     <div class="container">
-        <!-- File Explorer Sidebar -->
-        <div class="file-explorer">
-            <div class="explorer-header">
-                <h3>📁 Project Files</h3>
-                <button id="toggle-explorer" class="toggle-btn">◀</button>
-            </div>
-            <div class="file-tree">
-                <div class="folder">
-                    <div class="folder-header" data-folder="html">
-                        <span>📄 HTML Files</span>
-                        <button class="add-file-btn" data-type="html">+</button>
-                    </div>
-                    <div class="folder-content" id="html-files">
-                        <div class="file-item active" data-file="index.html">
-                            <span>index.html</span>
-                            <div class="file-actions">
-                                <button class="rename-btn">✏️</button>
-                                <button class="delete-btn">🗑️</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="folder">
-                    <div class="folder-header" data-folder="css">
-                        <span>🎨 CSS Files</span>
-                        <button class="add-file-btn" data-type="css">+</button>
-                    </div>
-                    <div class="folder-content" id="css-files">
-                        <div class="file-item" data-file="style.css">
-                            <span>style.css</span>
-                            <div class="file-actions">
-                                <button class="rename-btn">✏️</button>
-                                <button class="delete-btn">🗑️</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="folder">
-                    <div class="folder-header" data-folder="js">
-                        <span>⚡ JavaScript Files</span>
-                        <button class="add-file-btn" data-type="js">+</button>
-                    </div>
-                    <div class="folder-content" id="js-files">
-                        <div class="file-item" data-file="script.js">
-                            <span>script.js</span>
-                            <div class="file-actions">
-                                <button class="rename-btn">✏️</button>
-                                <button class="delete-btn">🗑️</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="folder">
-                    <div class="folder-header" data-folder="assets">
-                        <span>🖼️ Assets</span>
-                        <button class="add-file-btn" data-type="asset">+</button>
-                    </div>
-                    <div class="folder-content" id="asset-files">
-                        <!-- Assets will be listed here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Editor Panel -->
         <div class="editor-panel">
             <div class="editor-tabs">
-                <!-- Dynamic tabs will be added here -->
+                <button class="tab-btn active" data-tab="html">HTML</button>
+                <button class="tab-btn" data-tab="css">CSS</button>
+                <button class="tab-btn" data-tab="js">JavaScript</button>
                 <button class="tab-btn" data-tab="preview">Preview</button>
             </div>
 
             <div class="editor-content">
-                <!-- Dynamic editor content will be added here -->
-                <div class="tab-content active" id="preview-tab">
+                <div class="tab-content active" id="html-tab">
+                    <textarea id="html-editor" placeholder="Write your HTML here...">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;My Project&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Hello World!&lt;/h1&gt;
+    &lt;p&gt;Start building your amazing project...&lt;/p&gt;
+    &lt;button onclick="showAlert()"&gt;Click Me!&lt;/button&gt;
+&lt;/body&gt;
+&lt;/html&gt;</textarea>
+                </div>
+
+                <div class="tab-content" id="css-tab">
+                    <textarea id="css-editor" placeholder="Write your CSS here...">body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+button {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background: #ff5252;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}</textarea>
+                </div>
+
+                <div class="tab-content" id="js-tab">
+                    <textarea id="js-editor" placeholder="Write your JavaScript here...">function showAlert() {
+    alert('Hello from JavaScript! 🎉');
+    
+    // Create a new element
+    const newElement = document.createElement('div');
+    newElement.innerHTML = '&lt;h3&gt;Dynamic Content!&lt;/h3&gt;&lt;p&gt;This was added by JavaScript.&lt;/p&gt;';
+    newElement.style.background = 'rgba(255,255,255,0.1)';
+    newElement.style.padding = '20px';
+    newElement.style.borderRadius = '10px';
+    newElement.style.marginTop = '20px';
+    
+    document.body.appendChild(newElement);
+}
+
+// Add some interactive features
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Frontend playground loaded!');
+});</textarea>
+                </div>
+
+                <div class="tab-content" id="preview-tab">
                     <iframe id="preview-frame"></iframe>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add File Modal -->
-    <div id="add-file-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add New File</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="add-file-form">
-                    <div class="form-group">
-                        <label for="file-type">File Type:</label>
-                        <select id="file-type" required>
-                            <option value="html">HTML</option>
-                            <option value="css">CSS</option>
-                            <option value="js">JavaScript</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="file-name">File Name:</label>
-                        <input type="text" id="file-name" placeholder="e.g., styles.css" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Create File</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Upload Asset Modal -->
-    <div id="upload-asset-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Upload Asset</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="upload-asset-form">
-                    <div class="form-group">
-                        <label for="asset-file">Select File:</label>
-                        <input type="file" id="asset-file" accept="image/*,.svg,.png,.jpg,.jpeg,.gif" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="asset-name">File Name (optional):</label>
-                        <input type="text" id="asset-name" placeholder="Leave empty to use original name">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Upload Asset</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Projects Modal (existing) -->
+    <!-- Projects Modal -->
     <div id="projects-modal" class="modal">
-        <!-- ... existing projects modal content ... -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>My Projects</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="projects-list"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Success Notification -->
@@ -168,6 +129,8 @@
         <span>✓</span> Project saved successfully! Share URL copied to clipboard.
     </div>
 
+    <!-- Token Handler Script -->
+    <!-- Debug Token Handler Script -->
     <script>
         console.log('=== DEBUG: Token handler script loaded ===');
 
@@ -308,6 +271,8 @@
         }
     </script>
 
+    <!-- Make sure this matches your actual filename -->
     <script src="/js/frontend_editor.js"></script>
 </body>
+
 </html>
