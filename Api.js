@@ -1014,53 +1014,35 @@ app.get('/api/frontend/project/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/frontend/:id', (req, res) => {
-    try {
-        const projectId = req.params.id;
-        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
-
-        if (!fs.existsSync(projectPath)) {
-            return res.status(404).send('Project not found');
-        }
-
-        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-        const htmlContent = this.generateDeployedHTML(projectData);
-        
-        res.send(htmlContent);
-    } catch (error) {
-        console.error('Error serving frontend project:', error);
-        res.status(500).send('Error loading project');
-    }
-});
-
 function generateDeployedHTML(projectData) {
     const { files, assets } = projectData;
     
-    // Combine all CSS files
+    // Add null checks and safe property access
     let combinedCSS = '';
-    if (files.css) {
+    if (files && files.css) {
         Object.values(files.css).forEach(css => {
-            combinedCSS += css + '\n';
+            if (css) combinedCSS += css + '\n';
         });
     }
 
-    // Combine all JS files
     let combinedJS = '';
-    if (files.js) {
+    if (files && files.js) {
         Object.values(files.js).forEach(js => {
-            combinedJS += js + '\n';
+            if (js) combinedJS += js + '\n';
         });
     }
 
     // Get main HTML (use index.html or first HTML file)
     let mainHTML = '';
-    if (files.html) {
-        mainHTML = files.html['index.html'] || Object.values(files.html)[0] || '';
+    if (files && files.html) {
+        mainHTML = files.html['index.html'] || 
+                  (Object.values(files.html).length > 0 ? Object.values(files.html)[0] : '') || 
+                  '<h1>Project loaded successfully!</h1>';
     }
 
-    // Generate asset links
+    // Generate asset links with proper null checks
     const assetLinks = (assets || []).map(asset => {
-        if (asset.type.startsWith('image/')) {
+        if (asset && asset.type && asset.type.startsWith('image/') && asset.data) {
             return `<link rel="preload" href="${asset.data}" as="image">`;
         }
         return '';
@@ -1071,7 +1053,7 @@ function generateDeployedHTML(projectData) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectData.name}</title>
+    <title>${projectData.name || 'My Project'}</title>
     <style>${combinedCSS}</style>
     ${assetLinks}
 </head>
@@ -1081,6 +1063,41 @@ function generateDeployedHTML(projectData) {
 </body>
 </html>`;
 }
+
+app.get('/frontend/:id', (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
+
+        console.log(`[DEBUG] Loading project: ${projectId}`);
+        console.log(`[DEBUG] Project path: ${projectPath}`);
+
+        if (!fs.existsSync(projectPath)) {
+            console.log(`[DEBUG] Project file not found: ${projectPath}`);
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        console.log(`[DEBUG] Project data loaded:`, {
+            name: projectData.name,
+            hasFiles: !!projectData.files,
+            hasAssets: !!projectData.assets,
+            filesStructure: projectData.files ? Object.keys(projectData.files) : 'No files'
+        });
+
+        const htmlContent = generateDeployedHTML(projectData);
+        
+        console.log(`[DEBUG] Generated HTML content length: ${htmlContent.length}`);
+        res.send(htmlContent);
+        
+    } catch (error) {
+        console.error('Error serving frontend project:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).send('Error loading project: ' + error.message);
+    }
+});
+
+
 
 app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
     try {
