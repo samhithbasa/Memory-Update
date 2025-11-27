@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frontend Development</title>
+    <title>Advanced Frontend Playground</title>
     <link rel="stylesheet" href="/css/frontend_editor.css">
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
 </head>
@@ -12,7 +12,7 @@
 <body>
     <header class="frontend-header">
         <div class="header-left">
-            <h1>🚀 Frontend Playground</h1>
+            <h1>🚀 Advanced Frontend Playground</h1>
         </div>
         <div class="header-right">
             <input type="text" id="project-name" placeholder="Project Name">
@@ -20,21 +20,44 @@
                 💾 Save & Deploy
             </button>
             <button id="show-projects" class="btn btn-secondary">My Projects</button>
-            <button id="logout-btn" class="btn btn-logout">Logout</button>
+            <button id="assets-manager" class="btn btn-secondary">📁 Assets</button>
+
+            <!-- Dynamic Login/Logout Toggle Button -->
+            <button id="auth-toggle" class="btn btn-login">
+                🔐 Login
+            </button>
         </div>
     </header>
 
     <div class="container">
+        <!-- File Explorer Sidebar -->
+        <div class="file-explorer">
+            <div class="explorer-header">
+                <h3>Project Files</h3>
+                <button id="add-file" class="btn btn-small">+ New File</button>
+            </div>
+            <div class="file-tree" id="file-tree">
+                <!-- Files will be populated here -->
+            </div>
+        </div>
+
+        <!-- Main Editor Area -->
         <div class="editor-panel">
             <div class="editor-tabs">
                 <button class="tab-btn active" data-tab="html">HTML</button>
                 <button class="tab-btn" data-tab="css">CSS</button>
                 <button class="tab-btn" data-tab="js">JavaScript</button>
-                <button class="tab-btn" data-tab="preview">Preview</button>
+                <button class="tab-btn" data-tab="preview">Live Preview</button>
             </div>
 
             <div class="editor-content">
                 <div class="tab-content active" id="html-tab">
+                    <div class="file-selector">
+                        <select id="html-file-selector" class="file-select">
+                            <option value="index.html">index.html</option>
+                        </select>
+                        <button class="btn btn-small" onclick="frontendEditor.addFile('html')">+</button>
+                    </div>
                     <textarea id="html-editor" placeholder="Write your HTML here...">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
@@ -49,6 +72,12 @@
                 </div>
 
                 <div class="tab-content" id="css-tab">
+                    <div class="file-selector">
+                        <select id="css-file-selector" class="file-select">
+                            <option value="style.css">style.css</option>
+                        </select>
+                        <button class="btn btn-small" onclick="frontendEditor.addFile('css')">+</button>
+                    </div>
                     <textarea id="css-editor" placeholder="Write your CSS here...">body {
     font-family: Arial, sans-serif;
     max-width: 800px;
@@ -84,6 +113,12 @@ button:hover {
                 </div>
 
                 <div class="tab-content" id="js-tab">
+                    <div class="file-selector">
+                        <select id="js-file-selector" class="file-select">
+                            <option value="script.js">script.js</option>
+                        </select>
+                        <button class="btn btn-small" onclick="frontendEditor.addFile('js')">+</button>
+                    </div>
                     <textarea id="js-editor" placeholder="Write your JavaScript here...">function showAlert() {
     alert('Hello from JavaScript! 🎉');
     
@@ -105,6 +140,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
 
                 <div class="tab-content" id="preview-tab">
+                    <div class="preview-controls">
+                        <button id="refresh-preview" class="btn btn-small">🔄 Refresh</button>
+                        <button id="fullscreen-preview" class="btn btn-small">📺 Fullscreen</button>
+                        <span class="preview-size">
+                            <select id="preview-size-select">
+                                <option value="desktop">Desktop</option>
+                                <option value="tablet">Tablet</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="responsive">Responsive</option>
+                            </select>
+                        </span>
+                    </div>
                     <iframe id="preview-frame"></iframe>
                 </div>
             </div>
@@ -124,13 +171,58 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
+    <!-- Assets Manager Modal -->
+    <div id="assets-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Project Assets</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="assets-upload-area">
+                    <input type="file" id="asset-upload" multiple accept="image/*,.svg,.ico,.woff,.woff2,.ttf,.eot">
+                    <label for="asset-upload" class="upload-label">
+                        📁 Click to upload assets (images, fonts, etc.)
+                    </label>
+                    <div class="assets-list" id="assets-list">
+                        <!-- Assets will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Creation Modal -->
+    <div id="file-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New File</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new-file-name">File Name:</label>
+                    <input type="text" id="new-file-name" placeholder="e.g., about.html, styles.css, app.js">
+                </div>
+                <div class="form-group">
+                    <label for="new-file-type">File Type:</label>
+                    <select id="new-file-type">
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                        <option value="js">JavaScript</option>
+                    </select>
+                </div>
+                <button id="create-file" class="btn btn-primary">Create File</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Success Notification -->
     <div id="success-notification" class="notification">
         <span>✓</span> Project saved successfully! Share URL copied to clipboard.
     </div>
 
-    <!-- Token Handler Script -->
-    <!-- Debug Token Handler Script -->
+    <!-- Token Handler Script (keep your existing one) -->
     <script>
         console.log('=== DEBUG: Token handler script loaded ===');
 
@@ -271,7 +363,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     </script>
 
-    <!-- Make sure this matches your actual filename -->
     <script src="/js/frontend_editor.js"></script>
 </body>
 

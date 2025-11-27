@@ -958,17 +958,19 @@ app.delete('/delete-code/:id', authenticateToken, (req, res) => {
     }
 });
 
-app.post('/api/frontend/save', async (req, res) => {
+app.post('/api/frontend/save', authenticateToken, async (req, res) => {
     try {
-        const { html, css, js, name } = req.body;
+        const { name, files, assets, structure } = req.body;
         const projectId = uuidv4();
 
         const projectData = {
             id: projectId,
             name: name || 'Untitled Project',
-            html: html || '',
-            css: css || '',
-            js: js || '',
+            files: files || {},
+            assets: assets || [],
+            structure: structure || {},
+            userId: req.user.userId,
+            userEmail: req.user.email,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -989,7 +991,7 @@ app.post('/api/frontend/save', async (req, res) => {
     }
 });
 
-app.get('/api/frontend/project/:id', (req, res) => {
+app.get('/api/frontend/project/:id', authenticateToken, async (req, res) => {
     try {
         const projectId = req.params.id;
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
@@ -999,6 +1001,12 @@ app.get('/api/frontend/project/:id', (req, res) => {
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        
+        // Check if user owns this project
+        if (projectData.userId !== req.user.userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         res.json(projectData);
     } catch (error) {
         console.error('Error loading project:', error);
@@ -1016,22 +1024,8 @@ app.get('/frontend/:id', (req, res) => {
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-
-        const htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectData.name}</title>
-    <style>${projectData.css}</style>
-</head>
-<body>
-    ${projectData.html}
-    <script>${projectData.js}</script>
-</body>
-</html>`;
-
+        const htmlContent = this.generateDeployedHTML(projectData);
+        
         res.send(htmlContent);
     } catch (error) {
         console.error('Error serving frontend project:', error);
@@ -1039,25 +1033,86 @@ app.get('/frontend/:id', (req, res) => {
     }
 });
 
+function generateDeployedHTML(projectData) {
+    const { files, assets } = projectData;
+    
+    // Combine all CSS files
+    let combinedCSS = '';
+    if (files.css) {
+        Object.values(files.css).forEach(css => {
+            combinedCSS += css + '\n';
+        });
+    }
+
+    // Combine all JS files
+    let combinedJS = '';
+    if (files.js) {
+        Object.values(files.js).forEach(js => {
+            combinedJS += js + '\n';
+        });
+    }
+
+    // Get main HTML (use index.html or first HTML file)
+    let mainHTML = '';
+    if (files.html) {
+        mainHTML = files.html['index.html'] || Object.values(files.html)[0] || '';
+    }
+
+    // Generate asset links
+    const assetLinks = (assets || []).map(asset => {
+        if (asset.type.startsWith('image/')) {
+            return `<link rel="preload" href="${asset.data}" as="image">`;
+        }
+        return '';
+    }).join('\n');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectData.name}</title>
+    <style>${combinedCSS}</style>
+    ${assetLinks}
+</head>
+<body>
+    ${mainHTML}
+    <script>${combinedJS}</script>
+</body>
+</html>`;
+}
+
 app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
     try {
         const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
-        const projects = files
-            .filter(file => file.endsWith('.json'))
-            .map(file => {
+        const userProjects = [];
+
+        files.filter(file => file.endsWith('.json')).forEach(file => {
+            try {
                 const filePath = path.join(FRONTEND_STORAGE_DIR, file);
                 const projectData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                return {
-                    id: projectData.id,
-                    name: projectData.name,
-                    createdAt: projectData.createdAt,
-                    updatedAt: projectData.updatedAt,
-                    shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectData.id}`,
-                };
-            })
-            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                
+                // Only include projects owned by the user
+                if (projectData.userId === req.user.userId) {
+                    userProjects.push({
+                        id: projectData.id,
+                        name: projectData.name,
+                        createdAt: projectData.createdAt,
+                        updatedAt: projectData.updatedAt,
+                        shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectData.id}`,
+                        fileCount: Object.keys(projectData.files || {}).reduce((acc, key) => acc + Object.keys(projectData.files[key] || {}).length, 0),
+                        assetCount: (projectData.assets || []).length
+                    });
+                }
+            } catch (error) {
+                console.error(`Error processing project file ${file}:`, error);
+            }
+        });
 
-        res.json(projects);
+        // Sort by update date (newest first)
+        userProjects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        
+        res.json(userProjects);
     } catch (error) {
         console.error('Error loading projects:', error);
         res.status(500).json({ error: 'Failed to load projects' });
@@ -1072,6 +1127,12 @@ app.delete('/api/frontend/project/:id', authenticateToken, async (req, res) => {
 
         if (!fs.existsSync(projectPath)) {
             return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Verify ownership
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        if (projectData.userId !== req.user.userId) {
+            return res.status(403).json({ error: 'Access denied' });
         }
 
         // Delete the project file
