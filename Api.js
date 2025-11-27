@@ -1106,19 +1106,22 @@ function generateDeployedHTML(projectData) {
         }
     });
 
-    // Combine ALL JS files safely
+    // Combine ALL JS files safely - FIXED SYNTAX
     let combinedJS = '';
     Object.values(jsFiles).forEach(js => {
         if (js && typeof js === 'string') {
-            // Basic sanitization - remove any problematic characters
-            const safeJS = js.replace(/<\/script>/gi, '<\\/script>');
+            // Proper sanitization
+            const safeJS = js
+                .replace(/<\/script>/gi, '<\\/script>')
+                .replace(/`/g, '\\`')
+                .replace(/\${/g, '\\${');
             combinedJS += safeJS + '\n';
         }
     });
 
     // Get all HTML page names
     const pageNames = Object.keys(htmlFiles);
-    
+
     // Use index.html or first available HTML file
     let mainHTML = '';
     if (htmlFiles['index.html']) {
@@ -1129,29 +1132,10 @@ function generateDeployedHTML(projectData) {
         mainHTML = '<h1>Project loaded successfully!</h1><p>No HTML files found in this project.</p>';
     }
 
-    // Process HTML to remove external resource references and handle multi-page navigation
+    // Process HTML to remove external resource references
     let processedHTML = mainHTML
-        // Remove external CSS links (they're included in combinedCSS)
         .replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '')
-        // Remove external JS scripts (they're included in combinedJS)
         .replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
-
-    // Add multi-page navigation if there are multiple HTML files
-    if (pageNames.length > 1) {
-        const navigationHTML = `
-        <nav class="project-navigation" style="background: #f5f5f5; padding: 15px; border-bottom: 2px solid #ddd; margin: -20px -20px 20px -20px;">
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                ${pageNames.map(page => 
-                    `<button onclick="loadPage('${page}')" 
-                            style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        ${page.replace('.html', '')}
-                    </button>`
-                ).join('')}
-            </div>
-        </nav>`;
-        
-        processedHTML = processedHTML.replace('<body>', '<body>' + navigationHTML);
-    }
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -1168,31 +1152,67 @@ function generateDeployedHTML(projectData) {
             color: #333;
         }
         
-        /* Multi-page navigation styles */
+        /* Navigation styles */
         .project-navigation {
-            background: #2c3e50 !important;
+            background: #2c3e50;
+            padding: 15px;
+            margin: -20px -20px 20px -20px;
         }
-        .project-navigation button {
-            background: #34495e !important;
-            border: 1px solid #4a6278 !important;
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        .project-navigation button:hover {
-            background: #4a6278 !important;
+        .nav-btn {
+            background: #34495e;
+            color: white;
+            border: 1px solid #4a6278;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-btn:hover {
+            background: #4a6278;
+        }
+        .nav-btn.active {
+            background: #3498db;
+            border-color: #2980b9;
         }
         
         ${combinedCSS}
     </style>
 </head>
 <body>
+    <!-- Multi-page Navigation -->
+    ${pageNames.length > 1 ? `
+    <nav class="project-navigation">
+        <div class="nav-buttons">
+            ${pageNames.map(page =>
+        `<button class="nav-btn ${page === 'index.html' ? 'active' : ''}" 
+                        onclick="window.loadPage('${page}')">
+                    ${page.replace('.html', '')}
+                </button>`
+    ).join('')}
+        </div>
+    </nav>
+    ` : ''}
+    
     <div id="content">
         ${processedHTML}
     </div>
 
     <script>
-        // Multi-page functionality
+        // Project data
         const projectPages = ${JSON.stringify(htmlFiles)};
-        
+        const projectAssets = ${JSON.stringify(assets || [])};
+        const currentProject = '${name || 'Untitled Project'}';
+
+        // Multi-page navigation function
         function loadPage(pageName) {
+            console.log('Loading page:', pageName);
+            
             if (projectPages[pageName]) {
                 // Process the HTML for the new page
                 let pageHTML = projectPages[pageName]
@@ -1201,16 +1221,25 @@ function generateDeployedHTML(projectData) {
                 
                 document.getElementById('content').innerHTML = pageHTML;
                 
-                // Re-initialize any scripts for the new page
-                initializePageScripts();
+                // Update active navigation button
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+                
+                console.log('Page loaded successfully:', pageName);
+            } else {
+                console.error('Page not found:', pageName);
+                document.getElementById('content').innerHTML = 
+                    '<h1>Page Not Found</h1><p>The page "' + pageName + '" was not found in this project.</p>';
             }
         }
-        
-        function initializePageScripts() {
-            // This function would re-initialize any page-specific scripts
-            // For now, we rely on the combined JS that runs on every page
-        }
-        
+
+        // Make loadPage available globally
+        window.loadPage = loadPage;
+        window.projectPages = projectPages;
+        window.projectAssets = projectAssets;
+
         // Safe script execution with error handling
         (function() {
             try {
@@ -1218,12 +1247,18 @@ function generateDeployedHTML(projectData) {
             } catch (error) {
                 console.error('Script execution error in project:', error);
             }
-            
-            // Project info for debugging
-            console.log('Project "${name || 'Untitled'}" loaded successfully');
-            console.log('Pages available: ${pageNames.length}');
-            console.log('Assets: ${assets ? assets.length : 0}');
         })();
+
+        // Project info for debugging
+        console.log('Project "' + currentProject + '" loaded successfully');
+        console.log('Pages available:', pageNames.length);
+        console.log('Assets:', projectAssets.length);
+        console.log('All pages:', pageNames);
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded and parsed');
+        });
     </script>
 </body>
 </html>`;
@@ -1233,7 +1268,7 @@ function generateDeployedHTML(projectData) {
 app.get('/frontend-assets/:projectId/:filename', (req, res) => {
     try {
         const { projectId, filename } = req.params;
-        
+
         if (!projectId || !filename) {
             return res.status(400).send('Invalid request');
         }
@@ -1246,10 +1281,10 @@ app.get('/frontend-assets/:projectId/:filename', (req, res) => {
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
         const fileExt = path.extname(filename).toLowerCase();
-        
+
         let fileContent = null;
         let contentType = 'text/plain';
-        
+
         if (fileExt === '.css' && projectData.files?.css) {
             fileContent = projectData.files.css[filename];
             contentType = 'text/css';
@@ -1260,14 +1295,14 @@ app.get('/frontend-assets/:projectId/:filename', (req, res) => {
             fileContent = projectData.files.html[filename];
             contentType = 'text/html';
         }
-        
+
         if (fileContent) {
             res.setHeader('Content-Type', contentType);
             res.send(fileContent);
         } else {
             res.status(404).send('File not found in project');
         }
-        
+
     } catch (error) {
         console.error('Error serving project file:', error);
         res.status(500).send('Error loading file');
@@ -1363,8 +1398,23 @@ app.get('/frontend/:id', (req, res) => {
 
 
 
-app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
+// Update the projects route to be more permissive
+app.get('/api/frontend/projects', async (req, res) => {
     try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        let userId = null;
+
+        // If user is authenticated, get their ID
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId;
+            } catch (err) {
+                // Token is invalid, but we'll still return public projects
+                console.log('Invalid token, returning public projects only');
+            }
+        }
+
         const files = fs.readdirSync(FRONTEND_STORAGE_DIR);
         const userProjects = [];
 
@@ -1373,10 +1423,14 @@ app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
                 const filePath = path.join(FRONTEND_STORAGE_DIR, file);
                 const projectData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-                // ✅ IMPROVED: Handle both new and legacy projects
-                const isUserProject = !projectData.userId || projectData.userId === req.user.userId;
+                // Show project if:
+                // 1. It has no userId (legacy project)
+                // 2. It belongs to the current user
+                // 3. Or if no user is logged in, show legacy projects only
+                const isLegacyProject = !projectData.userId;
+                const isUserProject = userId && projectData.userId === userId;
 
-                if (isUserProject) {
+                if (isLegacyProject || isUserProject) {
                     userProjects.push({
                         id: projectData.id,
                         name: projectData.name,
@@ -1386,7 +1440,7 @@ app.get('/api/frontend/projects', authenticateToken, async (req, res) => {
                         fileCount: Object.keys(projectData.files || {}).reduce((acc, key) =>
                             acc + Object.keys(projectData.files[key] || {}).length, 0),
                         assetCount: (projectData.assets || []).length,
-                        isLegacy: !projectData.userId // Flag for legacy projects
+                        isLegacy: isLegacyProject
                     });
                 }
             } catch (error) {
