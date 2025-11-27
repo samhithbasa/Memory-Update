@@ -638,13 +638,9 @@ class EnhancedFrontendEditor {
     }
 
     generateFullHTML() {
-        // Combine all HTML files
-        let combinedHTML = '';
-        if (this.files.html) {
-            Object.values(this.files.html).forEach(html => {
-                if (html) combinedHTML += html + '\n';
-            });
-        }
+        // Get the current HTML file to display
+        const currentHtmlFile = this.currentFile.html || 'index.html';
+        const mainHTML = this.files.html[currentHtmlFile] || '';
 
         // Combine all CSS files
         let combinedCSS = '';
@@ -662,38 +658,63 @@ class EnhancedFrontendEditor {
             });
         }
 
-        // Only create asset references, don't auto-inject images
-        const assetCSS = this.assets.map(asset => {
-            if (asset.type && asset.type.startsWith('image/')) {
-                return `
-                /* Asset: ${asset.name} */
-                .asset-${asset.name.replace(/[^a-zA-Z0-9]/g, '-')} {
-                    background-image: url("${asset.data}");
-                }`;
-            }
-            return '';
-        }).join('\n');
-
-        const title = (document.getElementById('project-name') && document.getElementById('project-name').value) ? document.getElementById('project-name').value : 'My Project';
-
         return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>${document.getElementById('project-name').value || 'My Project'}</title>
     <style>
         ${combinedCSS}
-        ${assetCSS}
+        
+        /* Multi-page navigation styles */
+        .page-navigation {
+            background: #f5f5f5;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .page-nav-button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .page-nav-button:hover {
+            background: #0056b3;
+        }
     </style>
 </head>
 <body>
-    ${combinedHTML}
+    <!-- Page Navigation -->
+    <div class="page-navigation" id="page-navigation">
+        <strong>Pages:</strong>
+        ${Object.keys(this.files.html).map(page =>
+            `<button class="page-nav-button" onclick="switchPage('${page}')">${page}</button>`
+        ).join('')}
+    </div>
+    
+    ${mainHTML}
     
     <script>
-        // Make assets available to JavaScript without auto-injecting
+        // Multi-page navigation function
+        function switchPage(pageName) {
+            // This would need to communicate with the parent editor
+            // For now, we'll just show an alert
+            alert('Switch to: ' + pageName + '\\nIn the editor, use the file tree to switch between pages.');
+        }
+        
+        // Make assets available to JavaScript
         window.projectAssets = ${JSON.stringify(this.assets)};
         ${combinedJS}
+        
+        // Debug info
+        console.log('Project loaded: ${document.getElementById('project-name').value || 'My Project'}');
+        console.log('Assets count: ${this.assets.length}');
+        console.log('Available pages:', ${JSON.stringify(Object.keys(this.files.html))});
     </script>
 </body>
 </html>`;

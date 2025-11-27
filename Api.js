@@ -1091,93 +1091,293 @@ app.get('/api/frontend/project/:id', async (req, res) => {
 });
 
 function generateDeployedHTML(projectData) {
-    const { files, assets } = projectData;
+    const { files, assets, name } = projectData;
 
-    // Add null checks and safe property access
+    // Safe access to files with fallbacks
+    const htmlFiles = files?.html || {};
+    const cssFiles = files?.css || {};
+    const jsFiles = files?.js || {};
+
+    // Combine ALL CSS files
     let combinedCSS = '';
-    if (files && files.css) {
-        Object.values(files.css).forEach(css => {
-            if (css) combinedCSS += css + '\n';
-        });
-    }
-
-    let combinedJS = '';
-    if (files && files.js) {
-        Object.values(files.js).forEach(js => {
-            if (js) combinedJS += js + '\n';
-        });
-    }
-
-    // Get main HTML (use index.html or first HTML file)
-    let mainHTML = '';
-    if (files && files.html) {
-        mainHTML = files.html['index.html'] ||
-            (Object.values(files.html).length > 0 ? Object.values(files.html)[0] : '') ||
-            '<h1>Project loaded successfully!</h1>';
-    }
-
-    // ✅ IMPROVED: Better asset handling with fallbacks
-    const assetElements = (assets || []).map(asset => {
-        if (asset && asset.type && asset.type.startsWith('image/') && asset.data) {
-            // For deployed projects, use the base64 data directly
-            return `<img src="${asset.data}" alt="${asset.name}" class="asset-image" style="max-width: 100%; height: auto; display: block; margin: 10px 0;">`;
+    Object.values(cssFiles).forEach(css => {
+        if (css && typeof css === 'string') {
+            combinedCSS += css + '\n';
         }
-        return '';
-    }).join('\n');
+    });
+
+    // Combine ALL JS files  
+    let combinedJS = '';
+    Object.values(jsFiles).forEach(js => {
+        if (js && typeof js === 'string') {
+            combinedJS += js + '\n';
+        }
+    });
+
+    // Get all HTML page names
+    const pageNames = Object.keys(htmlFiles);
+    
+    // Use index.html or first available HTML file
+    let mainHTML = '';
+    if (htmlFiles['index.html']) {
+        mainHTML = htmlFiles['index.html'];
+    } else if (pageNames.length > 0) {
+        mainHTML = htmlFiles[pageNames[0]];
+    } else {
+        mainHTML = '<h1>Project loaded successfully!</h1><p>No HTML files found in this project.</p>';
+    }
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectData.name || 'My Project'}</title>
+    <title>${name || 'My Project'}</title>
     <style>
-        ${combinedCSS}
+        /* Reset and base styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* Asset styles for deployed project */
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
             line-height: 1.6;
             background: white;
             color: #333;
+            padding: 0;
+        }
+
+        /* Navigation styles */
+        .page-navigation {
+            background: #2c3e50;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
-        .asset-image {
-            max-width: 100%;
-            height: auto;
-            margin: 10px 0;
-            border: 1px solid #ddd;
+        .page-nav-list {
+            list-style: none;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .page-nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
             border-radius: 4px;
-            padding: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: #34495e;
+            transition: background 0.3s;
+            border: 1px solid #4a6278;
         }
         
-        /* Ensure images don't overflow */
-        img {
-            max-width: 100%;
-            height: auto;
+        .page-nav-link:hover {
+            background: #4a6278;
+            text-decoration: none;
         }
+        
+        .page-nav-link.current {
+            background: #3498db;
+            border-color: #2980b9;
+        }
+        
+        .content-area {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        ${combinedCSS}
     </style>
 </head>
 <body>
-    ${mainHTML}
+    <!-- Multi-page Navigation -->
+    ${pageNames.length > 1 ? `
+    <nav class="page-navigation">
+        <div style="color: white; margin-bottom: 10px; font-weight: bold;">
+            📁 Project: ${name || 'Untitled'} 
+        </div>
+        <ul class="page-nav-list">
+            ${pageNames.map(page => 
+                `<li>
+                    <a href="javascript:void(0)" 
+                       class="page-nav-link ${page === (pageNames[0]) ? 'current' : ''}" 
+                       onclick="loadPage('${page}')">
+                       ${page.replace('.html', '')}
+                    </a>
+                </li>`
+            ).join('')}
+        </ul>
+    </nav>
+    ` : ''}
     
-    <!-- Asset elements -->
-    ${assetElements}
-    
+    <div class="content-area" id="content">
+        ${mainHTML}
+    </div>
+
     <script>
-        // Make assets available in deployed project
+        // Project data
+        const projectPages = ${JSON.stringify(htmlFiles)};
         const projectAssets = ${JSON.stringify(assets || [])};
+        const currentProject = '${name || 'Untitled Project'}';
+
+        // Page loading function
+        function loadPage(pageName) {
+            console.log('Loading page:', pageName);
+            
+            if (projectPages[pageName]) {
+                // Update content
+                document.getElementById('content').innerHTML = projectPages[pageName];
+                
+                // Update navigation
+                document.querySelectorAll('.page-nav-link').forEach(link => {
+                    link.classList.remove('current');
+                });
+                event.target.classList.add('current');
+                
+                // Re-execute any scripts in the loaded content
+                executeScripts();
+                
+                console.log('Page loaded successfully:', pageName);
+            } else {
+                console.error('Page not found:', pageName);
+                document.getElementById('content').innerHTML = 
+                    '<h1>Page Not Found</h1><p>The requested page was not found in this project.</p>';
+            }
+        }
+
+        // Function to execute scripts in loaded content
+        function executeScripts() {
+            const scripts = document.getElementById('content').getElementsByTagName('script');
+            for (let script of scripts) {
+                try {
+                    if (script.src) {
+                        // External script - would need special handling
+                        console.log('External script found:', script.src);
+                    } else {
+                        // Inline script
+                        eval(script.innerHTML);
+                    }
+                } catch (error) {
+                    console.error('Script execution error:', error);
+                }
+            }
+        }
+
+        // Make project data available globally
+        window.projectAssets = projectAssets;
+        window.projectPages = projectPages;
+        window.loadPage = loadPage;
+
+        // Debug info
+        console.log('🚀 Project loaded:', currentProject);
+        console.log('📄 Available pages:', Object.keys(projectPages));
+        console.log('🖼️ Assets count:', projectAssets.length);
+        console.log('🔧 Project data:', { 
+            name: currentProject, 
+            pages: Object.keys(projectPages),
+            assets: projectAssets.length 
+        });
+
         ${combinedJS}
-        
-        // Debug info in console
-        console.log('Project loaded:', '${projectData.name || 'Untitled'}');
-        console.log('Assets count:', ${(assets || []).length});
     </script>
 </body>
 </html>`;
 }
+
+// Add this route to Api.js to handle CSS/JS file requests
+app.get('/frontend-assets/:projectId/:filename', (req, res) => {
+    try {
+        const { projectId, filename } = req.params;
+        
+        // Safety check
+        if (!projectId || !filename) {
+            return res.status(400).send('Invalid request');
+        }
+
+        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
+
+        if (!fs.existsSync(projectPath)) {
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        const fileExt = path.extname(filename).toLowerCase();
+        
+        // Determine file type and get content
+        let fileContent = null;
+        let contentType = 'text/plain';
+        
+        if (fileExt === '.css' && projectData.files?.css) {
+            fileContent = projectData.files.css[filename];
+            contentType = 'text/css';
+        } else if (fileExt === '.js' && projectData.files?.js) {
+            fileContent = projectData.files.js[filename];
+            contentType = 'application/javascript';
+        } else if (fileExt === '.html' && projectData.files?.html) {
+            fileContent = projectData.files.html[filename];
+            contentType = 'text/html';
+        }
+        
+        if (fileContent) {
+            res.setHeader('Content-Type', contentType);
+            res.send(fileContent);
+        } else {
+            res.status(404).send('File not found in project');
+        }
+        
+    } catch (error) {
+        console.error('Error serving project file:', error);
+        res.status(500).send('Error loading file');
+    }
+});
+
+// Handle requests for individual project files
+app.get('/frontend/:projectId/:filename', (req, res) => {
+    try {
+        const { projectId, filename } = req.params;
+        
+        // Safety check
+        if (projectId.endsWith('.js') || projectId.endsWith('.css') || projectId.endsWith('.html')) {
+            return res.status(404).send('Invalid project ID');
+        }
+
+        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
+
+        if (!fs.existsSync(projectPath)) {
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        
+        // Check if the requested file exists in the project
+        const fileExt = path.extname(filename).toLowerCase();
+        const fileType = fileExt === '.html' ? 'html' : 
+                        fileExt === '.css' ? 'css' : 
+                        fileExt === '.js' ? 'js' : null;
+        
+        if (fileType && projectData.files && projectData.files[fileType]) {
+            const fileContent = projectData.files[fileType][filename];
+            if (fileContent) {
+                // Set appropriate content type
+                const contentType = {
+                    '.html': 'text/html',
+                    '.css': 'text/css',
+                    '.js': 'application/javascript'
+                }[fileExt] || 'text/plain';
+                
+                res.setHeader('Content-Type', contentType);
+                return res.send(fileContent);
+            }
+        }
+        
+        res.status(404).send('File not found in project');
+        
+    } catch (error) {
+        console.error('Error serving project file:', error);
+        res.status(500).send('Error loading file');
+    }
+});
 
 app.get('/frontend/:id', (req, res) => {
     try {
