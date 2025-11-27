@@ -658,16 +658,18 @@ class EnhancedFrontendEditor {
             });
         }
 
-        // Combine all JS files safely
+        // Combine all JS files safely - FIXED for multi-page
         let combinedJS = '';
         if (this.files.js) {
             Object.values(this.files.js).forEach(js => {
                 if (js && typeof js === 'string') {
-                    const safeJS = js
-                        .replace(/<\/script>/gi, '<\\/script>')
+                    // Remove any script tags and escape properly
+                    let cleanJS = js
+                        .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, '$1')
+                        .replace(/<\/script>/gi, '\\x3C/script>')
                         .replace(/`/g, '\\`')
                         .replace(/\${/g, '\\${');
-                    combinedJS += safeJS + '\n';
+                    combinedJS += cleanJS + '\n';
                 }
             });
         }
@@ -675,15 +677,27 @@ class EnhancedFrontendEditor {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
         const allHtmlFiles = Object.keys(htmlFiles);
 
-        // EMERGENCY FIX: Define pageNames properly
-        const pageNames = allHtmlFiles;
+        // Get current project ID from URL
+        const currentUrl = window.location.href;
+        const projectIdMatch = currentUrl.match(/frontend\/([a-f0-9-]+)/);
+        const projectId = projectIdMatch ? projectIdMatch[1] : 'current-project';
+
+        // Process the main HTML to convert navigation links
+        let processedHTML = mainHTML
+            // Convert href="about.html" to onclick navigation
+            .replace(/<a[^>]*href=["']([^"']*\.html)["'][^>]*>/gi, (match, pageName) => {
+                return match.replace(`href="${pageName}"`, `href="#" onclick="window.loadPage('${pageName}')"`);
+            })
+            // Remove any external resource references
+            .replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '')
+            .replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
 
         return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectName}</title>
+    <title>${this.escapeHtml(projectName)}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -693,6 +707,7 @@ class EnhancedFrontendEditor {
             color: #333;
         }
         
+        /* Navigation styles */
         .project-navigation {
             background: #2c3e50;
             padding: 15px;
@@ -719,6 +734,7 @@ class EnhancedFrontendEditor {
         }
         .nav-btn.active {
             background: #3498db;
+            border-color: #2980b9;
         }
         
         ${combinedCSS}
@@ -740,35 +756,36 @@ class EnhancedFrontendEditor {
     ` : ''}
     
     <div id="content">
-        ${mainHTML}
+        ${processedHTML}
     </div>
 
     <script>
-        // EMERGENCY FIX: Define all variables properly
+        // Project data for multi-page navigation
         const projectPages = ${JSON.stringify(htmlFiles)};
         const projectAssets = ${JSON.stringify(this.assets || [])};
-        const currentProject = '${projectName}';
+        const currentProject = '${this.escapeHtml(projectName)}';
         const allPageNames = ${JSON.stringify(allHtmlFiles)};
-        const pageNames = allPageNames; // FIX: Define pageNames
+        const currentProjectId = '${projectId}';
 
         console.log('Project loaded:', currentProject, 'Pages:', allPageNames);
 
-        // Fixed navigation function
+        // Multi-page navigation function
         function loadPage(pageName) {
-            console.log('Loading:', pageName);
+            console.log('Loading page:', pageName);
             
             if (projectPages[pageName]) {
+                // Process the HTML for the new page
                 let pageHTML = projectPages[pageName]
                     .replace(/<link[^>]*href=["'][^"']*\\.css["'][^>]*>/gi, '')
                     .replace(/<script[^>]*src=["'][^"']*\\.js["'][^>]*><\\/script>/gi, '')
-                    // FIX: Convert navigation links safely
+                    // Convert navigation links in the loaded page
                     .replace(/<a[^>]*href=["']([^"']*\\.html)["'][^>]*>/gi, (match, hrefPage) => {
                         return match.replace(\`href="\${hrefPage}"\`, \`href="#" onclick="window.loadPage('\${hrefPage}')"\`);
                     });
                 
                 document.getElementById('content').innerHTML = pageHTML;
                 
-                // Update active buttons
+                // Update active navigation button
                 document.querySelectorAll('.nav-btn').forEach(btn => {
                     btn.classList.remove('active');
                     if (btn.getAttribute('onclick').includes(pageName)) {
@@ -776,56 +793,77 @@ class EnhancedFrontendEditor {
                     }
                 });
                 
-                console.log('Page loaded:', pageName);
+                // Update URL without reloading
+                try {
+                    const newUrl = \`/frontend/\${currentProjectId}#\${pageName}\`;
+                    window.history.pushState({ page: pageName }, '', newUrl);
+                } catch (error) {
+                    window.location.hash = pageName;
+                }
                 
-                // FIX: Remove problematic smooth scrolling code
+                console.log('Page loaded successfully:', pageName);
+                
+                // Execute JavaScript for the new page
                 setTimeout(() => {
                     try {
-                        // Only add smooth scrolling for actual anchor targets, not #
-                        const anchors = document.querySelectorAll('a[href*="#"]');
-                        anchors.forEach(anchor => {
-                            const href = anchor.getAttribute('href');
-                            if (href && href !== '#' && href.startsWith('#')) {
-                                anchor.addEventListener('click', function (e) {
-                                    e.preventDefault();
-                                    const target = document.querySelector(href);
-                                    if (target) {
-                                        target.scrollIntoView({ behavior: 'smooth' });
+                        // Safe script execution for the new page content
+                        const scripts = pageHTML.match(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi);
+                        if (scripts) {
+                            scripts.forEach(scriptTag => {
+                                const scriptContent = scriptTag.replace(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi, '$1');
+                                if (scriptContent.trim()) {
+                                    try {
+                                        new Function(scriptContent)();
+                                    } catch (e) {
+                                        console.error('Script error in page:', e);
                                     }
-                                });
-                            }
-                        });
+                                }
+                            });
+                        }
                     } catch (error) {
-                        console.log('Smooth scrolling setup completed');
+                        console.log('Page script execution completed');
                     }
                 }, 100);
                 
             } else {
                 console.error('Page not found:', pageName);
                 document.getElementById('content').innerHTML = 
-                    '<div style="padding: 20px; text-align: center;"><h1>Page Not Found</h1></div>';
+                    '<div style="padding: 20px; text-align: center;"><h1>Page Not Found</h1><p>The page "' + pageName + '" was not found.</p></div>';
             }
         }
 
-        // Make available globally
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(event) {
+            if (event.state && event.state.page) {
+                loadPage(event.state.page);
+            }
+        });
+
+        // Make loadPage available globally
         window.loadPage = loadPage;
         window.projectPages = projectPages;
-        window.pageNames = pageNames; // FIX: Export pageNames
+        window.allPageNames = allPageNames;
 
-        // Safe script execution
+        // Safe execution of combined JavaScript
         (function() {
             try {
+                /*! COMBINED_JS_START */
                 ${combinedJS}
+                /*! COMBINED_JS_END */
             } catch (error) {
-                console.error('Script error:', error);
+                console.error('Combined script error:', error);
             }
         })();
 
-        console.log('Project "${projectName}" ready');
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM ready');
+        // Load page from hash on initial load
+        window.addEventListener('load', function() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && projectPages[hash] && hash !== '${currentHtmlFile}') {
+                setTimeout(() => loadPage(hash), 100);
+            }
         });
+
+        console.log('Multi-page project "${this.escapeHtml(projectName)}" ready');
     </script>
 </body>
 </html>`;
@@ -1166,6 +1204,7 @@ class EnhancedFrontendEditor {
         if (projectsModal) projectsModal.style.display = 'none';
     }
 
+    // Add this to your EnhancedFrontendEditor class
     escapeHtml(str) {
         if (!str) return '';
         return str.toString()
