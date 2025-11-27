@@ -1067,7 +1067,8 @@ app.get('/api/frontend/health', (req, res) => {
     }
 });
 
-app.get('/api/frontend/project/:id', authenticateToken, async (req, res) => {
+// Update the project loading route to handle both authenticated and public access
+app.get('/api/frontend/project/:id', async (req, res) => {
     try {
         const projectId = req.params.id;
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
@@ -1078,13 +1079,9 @@ app.get('/api/frontend/project/:id', authenticateToken, async (req, res) => {
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
 
-        // ✅ IMPROVED: Handle projects without user IDs (legacy projects)
-        if (!projectData.userId) {
-            console.log(`[DEBUG] Project ${projectId} has no userId, allowing access`);
-            // Allow access to legacy projects without user IDs
-        } else if (projectData.userId !== req.user.userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // ✅ FIX: Allow public access to projects (remove authentication requirement)
+        // Projects should be accessible without login for sharing functionality
+        console.log(`[DEBUG] Loading project ${projectId} - public access allowed`);
 
         res.json(projectData);
     } catch (error) {

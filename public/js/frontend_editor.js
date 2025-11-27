@@ -26,6 +26,17 @@ class EnhancedFrontendEditor {
         }
     }
 
+    debugProjectState() {
+        console.log('=== PROJECT DEBUG INFO ===');
+        console.log('Current files:', this.files);
+        console.log('Current assets:', this.assets);
+        console.log('HTML files:', Object.keys(this.files.html));
+        console.log('CSS files:', Object.keys(this.files.css));
+        console.log('JS files:', Object.keys(this.files.js));
+        console.log('Current file selections:', this.currentFile);
+        console.log('========================');
+    }
+
     loadAssetsFromLocalStorage() {
         try {
             const savedAssets = localStorage.getItem('frontendEditor_assets');
@@ -34,7 +45,7 @@ class EnhancedFrontendEditor {
                 console.log('Loaded assets from localStorage:', this.assets.length, this.assets.map(a => a.name));
 
                 // Update assets manager if it's open
-                if (document.getElementById('assets-modal').style.display === 'block') {
+                if (document.getElementById('assets-modal') && document.getElementById('assets-modal').style.display === 'block') {
                     this.renderAssetsList();
                 }
             } else {
@@ -54,9 +65,10 @@ class EnhancedFrontendEditor {
         this.checkAuthStatus();
         this.setupAutoSave();
 
-        // ✅ Ensure assets are displayed if assets manager is open
+        // Ensure assets are displayed if assets manager is open
         setTimeout(() => {
-            if (document.getElementById('assets-modal').style.display === 'block') {
+            const assetsModal = document.getElementById('assets-modal');
+            if (assetsModal && assetsModal.style.display === 'block') {
                 this.renderAssetsList();
             }
         }, 100);
@@ -74,30 +86,56 @@ class EnhancedFrontendEditor {
         });
 
         // AUTH BUTTON (NEW)
-        document.getElementById('auth-toggle')
-            .addEventListener('click', () => this.handleAuthToggle());
+        const authToggleEl = document.getElementById('auth-toggle');
+        if (authToggleEl) {
+            authToggleEl.addEventListener('click', () => this.handleAuthToggle());
+        }
 
         // File selectors
-        document.getElementById('html-file-selector').addEventListener('change', (e) => {
-            this.currentFile.html = e.target.value;
-            this.loadFileContent('html', e.target.value);
-        });
+        const htmlSelector = document.getElementById('html-file-selector');
+        if (htmlSelector) {
+            htmlSelector.addEventListener('change', (e) => {
+                this.currentFile.html = e.target.value;
+                this.loadFileContent('html', e.target.value);
+            });
+        }
 
-        document.getElementById('css-file-selector').addEventListener('change', (e) => {
-            this.currentFile.css = e.target.value;
-            this.loadFileContent('css', e.target.value);
-        });
+        const cssSelector = document.getElementById('css-file-selector');
+        if (cssSelector) {
+            cssSelector.addEventListener('change', (e) => {
+                this.currentFile.css = e.target.value;
+                this.loadFileContent('css', e.target.value);
+            });
+        }
 
-        document.getElementById('js-file-selector').addEventListener('change', (e) => {
-            this.currentFile.js = e.target.value;
-            this.loadFileContent('js', e.target.value);
-        });
+        const jsSelector = document.getElementById('js-file-selector');
+        if (jsSelector) {
+            jsSelector.addEventListener('change', (e) => {
+                this.currentFile.js = e.target.value;
+                this.loadFileContent('js', e.target.value);
+            });
+        }
 
         this.setupEditorListeners();
 
-        document.getElementById('save-project').addEventListener('click', () => this.saveProject());
-        document.getElementById('show-projects').addEventListener('click', () => this.showProjects());
-        document.getElementById('assets-manager').addEventListener('click', () => this.showAssetsManager());
+        const saveProjectBtn = document.getElementById('save-project');
+        if (saveProjectBtn) saveProjectBtn.addEventListener('click', () => this.saveProject());
+
+        const showProjectsBtn = document.getElementById('show-projects');
+        if (showProjectsBtn) showProjectsBtn.addEventListener('click', () => this.showProjects());
+
+        const assetsManagerBtn = document.getElementById('assets-manager');
+        if (assetsManagerBtn) assetsManagerBtn.addEventListener('click', () => this.showAssetsManager());
+
+        // Add the new file-add buttons (Option A: sidebar)
+        const addHtmlBtn = document.getElementById('add-html-file');
+        if (addHtmlBtn) addHtmlBtn.addEventListener('click', () => this.addFile('html'));
+
+        const addCssBtn = document.getElementById('add-css-file');
+        if (addCssBtn) addCssBtn.addEventListener('click', () => this.addFile('css'));
+
+        const addJsBtn = document.getElementById('add-js-file');
+        if (addJsBtn) addJsBtn.addEventListener('click', () => this.addFile('js'));
 
         // Modal close
         document.querySelectorAll('.modal-close').forEach(btn => {
@@ -112,14 +150,23 @@ class EnhancedFrontendEditor {
             });
         });
 
-        document.getElementById('add-file').addEventListener('click', () => this.showFileModal());
-        document.getElementById('create-file').addEventListener('click', () => this.createNewFile());
+        const addFileBtn = document.getElementById('add-file');
+        if (addFileBtn) addFileBtn.addEventListener('click', () => this.showFileModal());
 
-        document.getElementById('asset-upload').addEventListener('change', (e) => this.handleAssetUpload(e));
+        const createFileBtn = document.getElementById('create-file');
+        if (createFileBtn) createFileBtn.addEventListener('click', () => this.createNewFile());
 
-        document.getElementById('refresh-preview').addEventListener('click', () => this.updatePreview());
-        document.getElementById('fullscreen-preview').addEventListener('click', () => this.toggleFullscreenPreview());
-        document.getElementById('preview-size-select').addEventListener('change', (e) => this.setPreviewSize(e.target.value));
+        const assetUpload = document.getElementById('asset-upload');
+        if (assetUpload) assetUpload.addEventListener('change', (e) => this.handleAssetUpload(e));
+
+        const refreshPreviewBtn = document.getElementById('refresh-preview');
+        if (refreshPreviewBtn) refreshPreviewBtn.addEventListener('click', () => this.updatePreview());
+
+        const fullscreenPreviewBtn = document.getElementById('fullscreen-preview');
+        if (fullscreenPreviewBtn) fullscreenPreviewBtn.addEventListener('click', () => this.toggleFullscreenPreview());
+
+        const previewSizeSelect = document.getElementById('preview-size-select');
+        if (previewSizeSelect) previewSizeSelect.addEventListener('change', (e) => this.setPreviewSize(e.target.value));
     }
 
     /* ----------------------------------------------------
@@ -136,9 +183,11 @@ class EnhancedFrontendEditor {
         }
 
         try {
-            authToggle.innerHTML = '⏳ Checking...';
-            authToggle.className = 'btn btn-auth-loading';
-            authToggle.disabled = true;
+            if (authToggle) {
+                authToggle.innerHTML = '⏳ Checking...';
+                authToggle.className = 'btn btn-auth-loading';
+                authToggle.disabled = true;
+            }
 
             const response = await fetch('/verify-token', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -155,13 +204,14 @@ class EnhancedFrontendEditor {
             Cookies.remove('token');
             this.setAuthState(false);
         } finally {
-            authToggle.disabled = false;
+            if (authToggle) authToggle.disabled = false;
         }
     }
 
     setAuthState(isAuthenticated) {
         this.isAuthenticated = isAuthenticated;
         const btn = document.getElementById('auth-toggle');
+        if (!btn) return;
 
         if (isAuthenticated) {
             btn.innerHTML = '🚪 Logout';
@@ -189,9 +239,11 @@ class EnhancedFrontendEditor {
         const token = Cookies.get('token');
         const authToggle = document.getElementById('auth-toggle');
 
-        authToggle.innerHTML = '⏳ Logging out...';
-        authToggle.className = 'btn btn-auth-loading';
-        authToggle.disabled = true;
+        if (authToggle) {
+            authToggle.innerHTML = '⏳ Logging out...';
+            authToggle.className = 'btn btn-auth-loading';
+            authToggle.disabled = true;
+        }
 
         try {
             if (token) {
@@ -214,7 +266,7 @@ class EnhancedFrontendEditor {
             this.showNotification('Logged out successfully!');
             setTimeout(() => window.location.reload(), 800);
         } finally {
-            authToggle.disabled = false;
+            if (authToggle) authToggle.disabled = false;
         }
     }
 
@@ -251,20 +303,28 @@ class EnhancedFrontendEditor {
 
         const debouncedPreview = debounce(() => this.updatePreview(), 500);
 
-        document.getElementById('html-editor').addEventListener('input', (e) => {
-            this.saveCurrentFile('html', e.target.value);
-            debouncedPreview();
-        });
+        const htmlEditor = document.getElementById('html-editor');
+        const cssEditor = document.getElementById('css-editor');
+        const jsEditor = document.getElementById('js-editor');
 
-        document.getElementById('css-editor').addEventListener('input', (e) => {
-            this.saveCurrentFile('css', e.target.value);
-            debouncedPreview();
-        });
-
-        document.getElementById('js-editor').addEventListener('input', (e) => {
-            this.saveCurrentFile('js', e.target.value);
-            debouncedPreview();
-        });
+        if (htmlEditor) {
+            htmlEditor.addEventListener('input', (e) => {
+                this.saveCurrentFile('html', e.target.value);
+                debouncedPreview();
+            });
+        }
+        if (cssEditor) {
+            cssEditor.addEventListener('input', (e) => {
+                this.saveCurrentFile('css', e.target.value);
+                debouncedPreview();
+            });
+        }
+        if (jsEditor) {
+            jsEditor.addEventListener('input', (e) => {
+                this.saveCurrentFile('js', e.target.value);
+                debouncedPreview();
+            });
+        }
     }
 
     setupAutoSave() {
@@ -290,6 +350,7 @@ class EnhancedFrontendEditor {
 
     updateFileTree() {
         const fileTree = document.getElementById('file-tree');
+        if (!fileTree) return;
         fileTree.innerHTML = '';
 
         Object.keys(this.files.html).forEach(f => this.addFileToTree('html', f));
@@ -301,6 +362,8 @@ class EnhancedFrontendEditor {
 
     addFileToTree(type, filename) {
         const tree = document.getElementById('file-tree');
+        if (!tree) return;
+
         const div = document.createElement('div');
         div.className = 'file-item';
         div.dataset.type = type;
@@ -333,6 +396,7 @@ class EnhancedFrontendEditor {
 
     updateFileSelector(id, files, selected) {
         const select = document.getElementById(id);
+        if (!select) return;
         select.innerHTML = '';
         Object.keys(files).forEach(name => {
             const opt = document.createElement('option');
@@ -346,33 +410,49 @@ class EnhancedFrontendEditor {
     openFile(type, filename) {
         this.currentFile[type] = filename;
         this.loadFileContent(type, filename);
-        this.switchTab(type);
+
+        // Switch to appropriate tab based on file type
+        if (type === 'html') this.switchTab('html');
+        else if (type === 'css') this.switchTab('css');
+        else if (type === 'js') this.switchTab('js');
+
         this.updateFileSelectors();
     }
 
     loadFileContent(type, filename) {
-        document.getElementById(`${type}-editor`).value =
-            this.files[type][filename];
+        const editor = document.getElementById(`${type}-editor`);
+        if (editor && this.files[type] && this.files[type][filename] !== undefined) {
+            editor.value = this.files[type][filename];
+        } else if (editor) {
+            editor.value = '';
+        }
     }
 
     saveCurrentFile(type, value) {
+        if (!this.files[type]) this.files[type] = {};
         this.files[type][this.currentFile[type]] = value;
     }
 
     showFileModal() {
-        document.getElementById('file-modal').style.display = 'block';
+        const modal = document.getElementById('file-modal');
+        if (modal) modal.style.display = 'block';
     }
 
     createNewFile() {
-        const name = document.getElementById('new-file-name').value.trim();
-        const type = document.getElementById('new-file-type').value;
+        const nameInput = document.getElementById('new-file-name');
+        const typeSelect = document.getElementById('new-file-type');
+
+        if (!nameInput || !typeSelect) return alert("Missing new file form elements");
+
+        const name = nameInput.value.trim();
+        const type = typeSelect.value;
 
         if (!name) return alert("Enter a file name");
 
         const ext = { html: '.html', css: '.css', js: '.js' };
         const final = name.endsWith(ext[type]) ? name : name + ext[type];
 
-        if (this.files[type][final]) return alert("File already exists");
+        if (this.files[type] && this.files[type][final]) return alert("File already exists");
 
         const defaults = {
             html: `<!DOCTYPE html><html><head><title>${final}</title></head><body></body></html>`,
@@ -380,13 +460,44 @@ class EnhancedFrontendEditor {
             js: `// ${final}`
         };
 
+        if (!this.files[type]) this.files[type] = {};
         this.files[type][final] = defaults[type];
 
         this.updateFileTree();
         this.openFile(type, final);
 
-        document.getElementById('file-modal').style.display = 'none';
-        document.getElementById('new-file-name').value = '';
+        const modal = document.getElementById('file-modal');
+        if (modal) modal.style.display = 'none';
+        nameInput.value = '';
+    }
+
+    // NEW: addFile method (simple prompt-based add, used by sidebar buttons)
+    addFile(type) {
+        const fileName = prompt(`Enter ${type.toUpperCase()} file name:`);
+        if (!fileName) return;
+
+        const extension = { html: '.html', css: '.css', js: '.js' }[type];
+        const fullName = fileName.endsWith(extension) ? fileName : fileName + extension;
+
+        if (!this.files[type]) this.files[type] = {};
+        if (this.files[type][fullName]) {
+            alert('File already exists!');
+            return;
+        }
+
+        // Default content for new files
+        const defaults = {
+            html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>${fullName}</title>\n</head>\n<body>\n    <h1>${fileName}</h1>\n</body>\n</html>`,
+            css: `/* ${fullName} */\nbody {\n    margin: 0;\n    padding: 20px;\n}`,
+            js: `// ${fullName}\nconsole.log('${fileName} loaded');`
+        };
+
+        this.files[type][fullName] = defaults[type];
+        this.updateFileTree();
+        this.updateFileSelectors();
+
+        // Switch to the new file
+        this.openFile(type, fullName);
     }
 
     renameFile(type, oldName) {
@@ -405,6 +516,7 @@ class EnhancedFrontendEditor {
     }
 
     deleteFile(type, name) {
+        if (!this.files[type]) return;
         if (Object.keys(this.files[type]).length <= 1)
             return alert("Cannot delete last file");
 
@@ -421,8 +533,9 @@ class EnhancedFrontendEditor {
     }
 
     showAssetsManager() {
-        document.getElementById('assets-modal').style.display = 'block';
-        // ✅ Ensure we're showing the current state
+        const modal = document.getElementById('assets-modal');
+        if (modal) modal.style.display = 'block';
+        // Ensure we're showing the current state
         this.renderAssetsList();
         console.log('Assets manager opened. Current assets:', this.assets.length);
     }
@@ -439,7 +552,7 @@ class EnhancedFrontendEditor {
                     uploadedAt: new Date()
                 });
 
-                // ✅ CRITICAL: Save assets to localStorage immediately after upload
+                // Save assets to localStorage immediately after upload
                 this.saveAssetsToLocalStorage();
                 this.renderAssetsList();
 
@@ -449,11 +562,12 @@ class EnhancedFrontendEditor {
         });
 
         // Clear the file input
-        e.target.value = '';
+        if (e && e.target) e.target.value = '';
     }
 
     renderAssetsList() {
         const assetsList = document.getElementById('assets-list');
+        if (!assetsList) return;
         assetsList.innerHTML = '';
 
         if (this.assets.length === 0) {
@@ -466,7 +580,7 @@ class EnhancedFrontendEditor {
             assetItem.className = 'asset-item';
 
             let preview = '';
-            if (asset.type.startsWith('image/')) {
+            if (asset.type && asset.type.startsWith('image/')) {
                 preview = `<img src="${asset.data}" alt="${asset.name}" style="max-width: 100%; max-height: 60px; object-fit: contain;">`;
             } else {
                 preview = `<div style="font-size: 2rem;">📄</div>`;
@@ -487,6 +601,7 @@ class EnhancedFrontendEditor {
 
     copyAssetUrl(name) {
         const asset = this.assets.find(a => a.name === name);
+        if (!asset) return;
         navigator.clipboard.writeText(asset.data).then(() =>
             this.showNotification("Asset URL copied!")
         );
@@ -495,7 +610,7 @@ class EnhancedFrontendEditor {
     deleteAsset(i) {
         if (confirm("Delete asset?")) {
             this.assets.splice(i, 1);
-            // ✅ CRITICAL: Save to localStorage after deletion
+            // Save to localStorage after deletion
             this.saveAssetsToLocalStorage();
             this.renderAssetsList();
         }
@@ -504,11 +619,22 @@ class EnhancedFrontendEditor {
     updatePreview() {
         const fullHTML = this.generateFullHTML();
         const frame = document.getElementById('preview-frame');
+        if (!frame) return;
         const doc = frame.contentDocument || frame.contentWindow.document;
 
+        // Clear previous content and write new content
         doc.open();
         doc.write(fullHTML);
         doc.close();
+
+        // Handle frame events (best-effort)
+        frame.onload = () => {
+            console.log('Preview frame loaded successfully');
+        };
+
+        frame.onerror = (error) => {
+            console.error('Preview frame error:', error);
+        };
     }
 
     generateFullHTML() {
@@ -536,58 +662,41 @@ class EnhancedFrontendEditor {
             });
         }
 
-        // Generate proper asset references - FIXED
-        const assetLinks = this.assets.map(asset => {
+        // Only create asset references, don't auto-inject images
+        const assetCSS = this.assets.map(asset => {
             if (asset.type && asset.type.startsWith('image/')) {
-                // For images, create proper img tags or background references
-                return ``; // We'll handle images in the HTML/CSS directly
-            }
-            return '';
-        }).join('\n');
-
-        // Create base HTML with proper asset handling
-        let baseHTML = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${document.getElementById('project-name').value || 'My Project'}</title>
-    <style>
-        ${combinedCSS}
-        
-        /* Inject asset styles */
-        ${this.assets.map(asset => {
-            if (asset.type && asset.type.startsWith('image/')) {
-                // Create CSS classes for images
                 return `
+                /* Asset: ${asset.name} */
                 .asset-${asset.name.replace(/[^a-zA-Z0-9]/g, '-')} {
                     background-image: url("${asset.data}");
                 }`;
             }
             return '';
-        }).join('\n')}
+        }).join('\n');
+
+        const title = (document.getElementById('project-name') && document.getElementById('project-name').value) ? document.getElementById('project-name').value : 'My Project';
+
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        ${combinedCSS}
+        ${assetCSS}
     </style>
 </head>
 <body>
     ${combinedHTML}
     
-    <!-- Inject asset elements -->
-    ${this.assets.map(asset => {
-            if (asset.type && asset.type.startsWith('image/')) {
-                return `<img src="${asset.data}" alt="${asset.name}" style="max-width: 100%; height: auto;">`;
-            }
-            return '';
-        }).join('\n')}
-    
     <script>
-        // Make assets available to JavaScript
+        // Make assets available to JavaScript without auto-injecting
         window.projectAssets = ${JSON.stringify(this.assets)};
         ${combinedJS}
     </script>
 </body>
 </html>`;
-
-        return baseHTML;
     }
 
     /* ---------------------------------------------
@@ -602,20 +711,27 @@ class EnhancedFrontendEditor {
         }
 
         const saveBtn = document.getElementById('save-project');
-        const originalText = saveBtn.innerHTML;
+        const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
 
         // Add saving state
-        saveBtn.innerHTML = '💾 Saving...';
-        saveBtn.classList.add('saving');
-        saveBtn.disabled = true;
+        if (saveBtn) {
+            saveBtn.innerHTML = '💾 Saving...';
+            saveBtn.classList.add('saving');
+            saveBtn.disabled = true;
+        }
 
-        const projectName = document.getElementById('project-name').value.trim() || 'Untitled Project';
+        const projectNameEl = document.getElementById('project-name');
+        const projectName = projectNameEl ? projectNameEl.value.trim() || 'Untitled Project' : 'Untitled Project';
 
         try {
             // Ensure all current file content is saved before sending
-            this.saveCurrentFile('html', document.getElementById('html-editor').value);
-            this.saveCurrentFile('css', document.getElementById('css-editor').value);
-            this.saveCurrentFile('js', document.getElementById('js-editor').value);
+            const htmlEditor = document.getElementById('html-editor');
+            const cssEditor = document.getElementById('css-editor');
+            const jsEditor = document.getElementById('js-editor');
+
+            if (htmlEditor) this.saveCurrentFile('html', htmlEditor.value);
+            if (cssEditor) this.saveCurrentFile('css', cssEditor.value);
+            if (jsEditor) this.saveCurrentFile('js', jsEditor.value);
 
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
@@ -626,7 +742,7 @@ class EnhancedFrontendEditor {
                 body: JSON.stringify({
                     name: projectName,
                     files: this.files,
-                    assets: this.assets, // ✅ Make sure assets are included
+                    assets: this.assets,
                     structure: this.getProjectStructure()
                 })
             });
@@ -635,9 +751,9 @@ class EnhancedFrontendEditor {
 
             if (result.success) {
                 this.showSuccessNotification(result.shareUrl);
-                saveBtn.innerHTML = '✅ Saved!';
+                if (saveBtn) saveBtn.innerHTML = '✅ Saved!';
                 setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
+                    if (saveBtn) saveBtn.innerHTML = originalText;
                 }, 2000);
 
                 console.log('Project saved with assets:', {
@@ -647,26 +763,30 @@ class EnhancedFrontendEditor {
                 });
             } else {
                 alert('Failed to save project: ' + result.error);
-                saveBtn.innerHTML = originalText;
+                if (saveBtn) saveBtn.innerHTML = originalText;
             }
         } catch (error) {
             console.error('Error saving project:', error);
             alert('Error saving project. Please try again.');
-            saveBtn.innerHTML = '❌ Failed';
-            setTimeout(() => {
-                saveBtn.innerHTML = originalText;
-            }, 2000);
+            if (saveBtn) {
+                saveBtn.innerHTML = '❌ Failed';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                }, 2000);
+            }
         } finally {
-            saveBtn.classList.remove('saving');
-            saveBtn.disabled = false;
+            if (saveBtn) {
+                saveBtn.classList.remove('saving');
+                saveBtn.disabled = false;
+            }
         }
     }
 
     getProjectStructure() {
         return {
-            html: Object.keys(this.files.html),
-            css: Object.keys(this.files.css),
-            js: Object.keys(this.files.js),
+            html: Object.keys(this.files.html || {}),
+            css: Object.keys(this.files.css || {}),
+            js: Object.keys(this.files.js || {}),
             assets: this.assets.map(a => a.name)
         };
     }
@@ -674,8 +794,12 @@ class EnhancedFrontendEditor {
     showSuccessNotification(url) {
         navigator.clipboard.writeText(url).then(() => {
             const n = document.getElementById('success-notification');
-            n.style.display = 'flex';
-            setTimeout(() => (n.style.display = 'none'), 4000);
+            if (n) {
+                n.style.display = 'flex';
+                setTimeout(() => (n.style.display = 'none'), 4000);
+            }
+        }).catch(() => {
+            // ignore clipboard errors
         });
     }
 
@@ -693,7 +817,8 @@ class EnhancedFrontendEditor {
             const projects = await res.json();
             this.displayProjects(projects);
 
-            document.getElementById('projects-modal').style.display = 'block';
+            const projectsModal = document.getElementById('projects-modal');
+            if (projectsModal) projectsModal.style.display = 'block';
 
         } catch (err) {
             console.error(err);
@@ -703,8 +828,9 @@ class EnhancedFrontendEditor {
 
     displayProjects(projects) {
         const list = document.getElementById('projects-list');
+        if (!list) return;
 
-        if (projects.length === 0) {
+        if (!projects || projects.length === 0) {
             list.innerHTML = `<p style="text-align:center;padding:20px;">No projects found.</p>`;
             return;
         }
@@ -743,49 +869,53 @@ class EnhancedFrontendEditor {
 
     async openProject(projectId) {
         try {
-            const response = await fetch(`/api/frontend/project/${projectId}`);
+            const token = Cookies.get('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            const response = await fetch(`/api/frontend/project/${projectId}`, {
+                headers: headers
+            });
+
             if (!response.ok) {
                 throw new Error('Failed to load project');
             }
 
             const project = await response.json();
 
-            // Load project metadata
+            // Load project data
             document.getElementById('project-name').value = project.name;
+            this.files = project.files || { html: {}, css: {}, js: {} };
 
-            // Load files structure
-            if (project.files) {
-                this.files = project.files;
-                this.updateFileTree();
+            // ✅ FIX: Ensure all file types exist
+            if (!this.files.html) this.files.html = {};
+            if (!this.files.css) this.files.css = {};
+            if (!this.files.js) this.files.js = {};
 
-                // Set current files
-                if (project.files.html && Object.keys(project.files.html).length > 0) {
-                    this.currentFile.html = Object.keys(project.files.html)[0];
-                    this.loadFileContent('html', this.currentFile.html);
-                }
+            this.updateFileTree();
 
-                if (project.files.css && Object.keys(project.files.css).length > 0) {
-                    this.currentFile.css = Object.keys(project.files.css)[0];
-                    this.loadFileContent('css', this.currentFile.css);
-                }
+            // Set current files to first available files
+            const htmlFiles = Object.keys(this.files.html);
+            const cssFiles = Object.keys(this.files.css);
+            const jsFiles = Object.keys(this.files.js);
 
-                if (project.files.js && Object.keys(project.files.js).length > 0) {
-                    this.currentFile.js = Object.keys(project.files.js)[0];
-                    this.loadFileContent('js', this.currentFile.js);
-                }
+            if (htmlFiles.length > 0) {
+                this.currentFile.html = htmlFiles[0];
+                this.loadFileContent('html', this.currentFile.html);
             }
 
-            // ✅ CRITICAL: Load assets and save to localStorage
-            if (project.assets && Array.isArray(project.assets)) {
-                this.assets = project.assets;
-                // Save loaded assets to localStorage
-                this.saveAssetsToLocalStorage();
-                console.log('Loaded assets from project:', this.assets.length, this.assets.map(a => a.name));
-            } else {
-                this.assets = [];
-                this.saveAssetsToLocalStorage();
-                console.log('No assets found in project');
+            if (cssFiles.length > 0) {
+                this.currentFile.css = cssFiles[0];
+                this.loadFileContent('css', this.currentFile.css);
             }
+
+            if (jsFiles.length > 0) {
+                this.currentFile.js = jsFiles[0];
+                this.loadFileContent('js', this.currentFile.js);
+            }
+
+            // Load assets
+            this.assets = project.assets || [];
+            this.saveAssetsToLocalStorage();
 
             this.hideModal();
             this.updatePreview();
@@ -794,7 +924,7 @@ class EnhancedFrontendEditor {
 
         } catch (error) {
             console.error('Error opening project:', error);
-            alert('Error opening project. Please try again.');
+            alert('Error opening project. The project may not exist or you may not have permission to access it.');
         }
     }
 
@@ -821,6 +951,11 @@ class EnhancedFrontendEditor {
         }
     }
 
+    hideModal() {
+        const projectsModal = document.getElementById('projects-modal');
+        if (projectsModal) projectsModal.style.display = 'none';
+    }
+
     escapeHtml(str) {
         return str.replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -829,8 +964,6 @@ class EnhancedFrontendEditor {
             .replace(/'/g, "&#039;");
     }
 }
-
-
 
 /* ----------------------------------------------------
    BOOT EDITOR
