@@ -679,71 +679,71 @@ class EnhancedFrontendEditor {
         return processed;
     }
 
-ggenerateFullHTML() {
-    const htmlFiles = this.files.html || {};
-    const cssFiles = this.files.css || {};
-    const jsFiles = this.files.js || {};
+    generateFullHTML() {
+        const htmlFiles = this.files.html || {};
+        const cssFiles = this.files.css || {};
+        const jsFiles = this.files.js || {};
 
-    const currentHtmlFile = this.currentFile.html || 'index.html';
-    const mainHTML = htmlFiles[currentHtmlFile] || '<h1>No content</h1>';
+        const currentHtmlFile = this.currentFile.html || 'index.html';
+        const mainHTML = htmlFiles[currentHtmlFile] || '<h1>No content</h1>';
 
-    // Combine all CSS
-    let combinedCSS = '';
-    Object.values(cssFiles).forEach(css => {
-        if (css && typeof css === 'string') {
-            combinedCSS += css + '\n';
-        }
-    });
-
-    // Combine all JS safely
-    let combinedJS = '';
-    Object.values(jsFiles).forEach(js => {
-        if (js && typeof js === 'string') {
-            const safeJS = js
-                .replace(/<\/script>/gi, '<\\/script>')
-                .replace(/`/g, '\\`')
-                .replace(/\${/g, '\\${');
-            combinedJS += safeJS + '\n';
-        }
-    });
-
-    const allHtmlFiles = Object.keys(htmlFiles);
-
-    // Process ALL HTML files for deployment
-    const processedHtmlFiles = {};
-    Object.keys(htmlFiles).forEach(filename => {
-        let html = htmlFiles[filename];
-        
-        // 1. Convert all .html links to JavaScript calls
-        html = html.replace(
-            /<a\s+(?:[^>]*?\s+)?href=["']([^"']*\.html)(?:#[^"']*)?["'][^>]*>/gi,
-            (match, href) => {
-                const pageName = href.split('/').pop();
-                if (htmlFiles[pageName]) {
-                    return match.replace(
-                        `href="${href}"`,
-                        `href="javascript:void(0)" onclick="window.loadPage('${pageName}')"`
-                    );
-                }
-                return match;
+        // Combine all CSS
+        let combinedCSS = '';
+        Object.values(cssFiles).forEach(css => {
+            if (css && typeof css === 'string') {
+                combinedCSS += css + '\n';
             }
-        );
-        
-        // 2. Replace image sources with base64 data
-        this.assets.forEach(asset => {
-            // Simple replacement for src="filename.jpg"
-            const regex1 = new RegExp(`src=["']([^"']*${asset.name})["']`, 'gi');
-            html = html.replace(regex1, `src="${asset.data}"`);
-            
-            // Also handle src='filename.jpg' (single quotes)
-            const regex2 = new RegExp(`src=['"]([^'"]*${asset.name})['"]`, 'gi');
-            html = html.replace(regex2, `src="${asset.data}"`);
         });
-        
-        processedHtmlFiles[filename] = html;
-    });
 
-    return `<!DOCTYPE html>
+        // Combine all JS safely
+        let combinedJS = '';
+        Object.values(jsFiles).forEach(js => {
+            if (js && typeof js === 'string') {
+                const safeJS = js
+                    .replace(/<\/script>/gi, '<\\/script>')
+                    .replace(/`/g, '\\`')
+                    .replace(/\${/g, '\\${');
+                combinedJS += safeJS + '\n';
+            }
+        });
+
+        const allHtmlFiles = Object.keys(htmlFiles);
+
+        // Process ALL HTML files for deployment
+        const processedHtmlFiles = {};
+        Object.keys(htmlFiles).forEach(filename => {
+            let html = htmlFiles[filename];
+
+            // 1. Convert all .html links to JavaScript calls
+            html = html.replace(
+                /<a\s+(?:[^>]*?\s+)?href=["']([^"']*\.html)(?:#[^"']*)?["'][^>]*>/gi,
+                (match, href) => {
+                    const pageName = href.split('/').pop();
+                    if (htmlFiles[pageName]) {
+                        return match.replace(
+                            `href="${href}"`,
+                            `href="javascript:void(0)" onclick="window.loadPage('${pageName}')"`
+                        );
+                    }
+                    return match;
+                }
+            );
+
+            // 2. Replace image sources with base64 data
+            this.assets.forEach(asset => {
+                // Simple replacement for src="filename.jpg"
+                const regex1 = new RegExp(`src=["']([^"']*${asset.name})["']`, 'gi');
+                html = html.replace(regex1, `src="${asset.data}"`);
+
+                // Also handle src='filename.jpg' (single quotes)
+                const regex2 = new RegExp(`src=['"]([^'"]*${asset.name})['"]`, 'gi');
+                html = html.replace(regex2, `src="${asset.data}"`);
+            });
+
+            processedHtmlFiles[filename] = html;
+        });
+
+        return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -785,7 +785,7 @@ ggenerateFullHTML() {
     <!-- Auto navigation bar -->
     <div class="auto-nav" style="display: ${allHtmlFiles.length > 1 ? 'block' : 'none'}">
         <strong>Navigate:</strong>
-        ${allHtmlFiles.map(page => 
+        ${allHtmlFiles.map(page =>
             `<a href="javascript:void(0)" onclick="loadPage('${page}')">${page.replace('.html', '')}</a>`
         ).join(' | ')}
     </div>
@@ -858,233 +858,233 @@ ggenerateFullHTML() {
     </script>
 </body>
 </html>`;
-}
+    }
 
-// Add this method in your class (anywhere, but near other setup methods is good)
-setupHashNavigation() {
-    window.addEventListener('hashchange', () => {
-        const hash = window.location.hash.replace('#', '');
-        if (hash && this.files.html && this.files.html[hash]) {
-            // If you have a loadPage method in the editor itself
-            if (this.loadPage) {
-                this.loadPage(hash);
+    // Add this method in your class (anywhere, but near other setup methods is good)
+    setupHashNavigation() {
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && this.files.html && this.files.html[hash]) {
+                // If you have a loadPage method in the editor itself
+                if (this.loadPage) {
+                    this.loadPage(hash);
+                }
+            }
+        });
+    }
+    /* ----------------------------------------------------
+    PREVIEW CONTROLS - MISSING METHODS
+    ---------------------------------------------------- */
+
+    toggleFullscreenPreview() {
+        const previewFrame = document.getElementById('preview-frame');
+        if (!previewFrame) return;
+
+        if (!document.fullscreenElement) {
+            // Enter fullscreen
+            if (previewFrame.requestFullscreen) {
+                previewFrame.requestFullscreen();
+            } else if (previewFrame.webkitRequestFullscreen) {
+                previewFrame.webkitRequestFullscreen();
+            } else if (previewFrame.msRequestFullscreen) {
+                previewFrame.msRequestFullscreen();
+            }
+        } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
             }
         }
-    });
-}
-/* ----------------------------------------------------
-PREVIEW CONTROLS - MISSING METHODS
----------------------------------------------------- */
-
-toggleFullscreenPreview() {
-    const previewFrame = document.getElementById('preview-frame');
-    if (!previewFrame) return;
-
-    if (!document.fullscreenElement) {
-        // Enter fullscreen
-        if (previewFrame.requestFullscreen) {
-            previewFrame.requestFullscreen();
-        } else if (previewFrame.webkitRequestFullscreen) {
-            previewFrame.webkitRequestFullscreen();
-        } else if (previewFrame.msRequestFullscreen) {
-            previewFrame.msRequestFullscreen();
-        }
-    } else {
-        // Exit fullscreen
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
-        }
-    }
-}
-
-setPreviewSize(size) {
-    const previewFrame = document.getElementById('preview-frame');
-    if (!previewFrame) return;
-
-    const previewContainer = previewFrame.parentElement;
-    if (!previewContainer) return;
-
-    // Remove existing size classes
-    previewContainer.classList.remove('preview-desktop', 'preview-tablet', 'preview-mobile', 'preview-responsive');
-
-    switch (size) {
-        case 'desktop':
-            previewContainer.classList.add('preview-desktop');
-            previewFrame.style.width = '100%';
-            previewFrame.style.height = '100%';
-            break;
-        case 'tablet':
-            previewContainer.classList.add('preview-tablet');
-            previewFrame.style.width = '768px';
-            previewFrame.style.height = '1024px';
-            break;
-        case 'mobile':
-            previewContainer.classList.add('preview-mobile');
-            previewFrame.style.width = '375px';
-            previewFrame.style.height = '667px';
-            break;
-        case 'responsive':
-            previewContainer.classList.add('preview-responsive');
-            previewFrame.style.width = '100%';
-            previewFrame.style.height = '100%';
-            break;
-        default:
-            previewFrame.style.width = '100%';
-            previewFrame.style.height = '100%';
     }
 
-    // Update preview after size change
-    setTimeout(() => this.updatePreview(), 100);
-}
+    setPreviewSize(size) {
+        const previewFrame = document.getElementById('preview-frame');
+        if (!previewFrame) return;
+
+        const previewContainer = previewFrame.parentElement;
+        if (!previewContainer) return;
+
+        // Remove existing size classes
+        previewContainer.classList.remove('preview-desktop', 'preview-tablet', 'preview-mobile', 'preview-responsive');
+
+        switch (size) {
+            case 'desktop':
+                previewContainer.classList.add('preview-desktop');
+                previewFrame.style.width = '100%';
+                previewFrame.style.height = '100%';
+                break;
+            case 'tablet':
+                previewContainer.classList.add('preview-tablet');
+                previewFrame.style.width = '768px';
+                previewFrame.style.height = '1024px';
+                break;
+            case 'mobile':
+                previewContainer.classList.add('preview-mobile');
+                previewFrame.style.width = '375px';
+                previewFrame.style.height = '667px';
+                break;
+            case 'responsive':
+                previewContainer.classList.add('preview-responsive');
+                previewFrame.style.width = '100%';
+                previewFrame.style.height = '100%';
+                break;
+            default:
+                previewFrame.style.width = '100%';
+                previewFrame.style.height = '100%';
+        }
+
+        // Update preview after size change
+        setTimeout(() => this.updatePreview(), 100);
+    }
 
     /* ---------------------------------------------
        PROJECT SAVE / LOAD
     --------------------------------------------- */
 
     async saveProject() {
-    const token = Cookies.get('token');
-    if (!token) {
-        alert('Please login to save your project');
-        return;
-    }
+        const token = Cookies.get('token');
+        if (!token) {
+            alert('Please login to save your project');
+            return;
+        }
 
-    const saveBtn = document.getElementById('save-project');
-    const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
+        const saveBtn = document.getElementById('save-project');
+        const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
 
-    // Add saving state
-    if (saveBtn) {
-        saveBtn.innerHTML = '💾 Saving...';
-        saveBtn.classList.add('saving');
-        saveBtn.disabled = true;
-    }
+        // Add saving state
+        if (saveBtn) {
+            saveBtn.innerHTML = '💾 Saving...';
+            saveBtn.classList.add('saving');
+            saveBtn.disabled = true;
+        }
 
-    const projectNameEl = document.getElementById('project-name');
-    const projectName = projectNameEl ? projectNameEl.value.trim() || 'Untitled Project' : 'Untitled Project';
+        const projectNameEl = document.getElementById('project-name');
+        const projectName = projectNameEl ? projectNameEl.value.trim() || 'Untitled Project' : 'Untitled Project';
 
-    try {
-        // Ensure all current file content is saved before sending
-        const htmlEditor = document.getElementById('html-editor');
-        const cssEditor = document.getElementById('css-editor');
-        const jsEditor = document.getElementById('js-editor');
+        try {
+            // Ensure all current file content is saved before sending
+            const htmlEditor = document.getElementById('html-editor');
+            const cssEditor = document.getElementById('css-editor');
+            const jsEditor = document.getElementById('js-editor');
 
-        if (htmlEditor) this.saveCurrentFile('html', htmlEditor.value);
-        if (cssEditor) this.saveCurrentFile('css', cssEditor.value);
-        if (jsEditor) this.saveCurrentFile('js', jsEditor.value);
+            if (htmlEditor) this.saveCurrentFile('html', htmlEditor.value);
+            if (cssEditor) this.saveCurrentFile('css', cssEditor.value);
+            if (jsEditor) this.saveCurrentFile('js', jsEditor.value);
 
-        const response = await fetch('/api/frontend/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                name: projectName,
-                files: this.files,
-                assets: this.assets,
-                structure: this.getProjectStructure()
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            this.showSuccessNotification(result.shareUrl);
-            if (saveBtn) saveBtn.innerHTML = '✅ Saved!';
-            setTimeout(() => {
-                if (saveBtn) saveBtn.innerHTML = originalText;
-            }, 2000);
-
-            console.log('Project saved with assets:', {
-                projectId: result.projectId,
-                assetsCount: this.assets.length,
-                assets: this.assets.map(a => a.name)
+            const response = await fetch('/api/frontend/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: projectName,
+                    files: this.files,
+                    assets: this.assets,
+                    structure: this.getProjectStructure()
+                })
             });
-        } else {
-            alert('Failed to save project: ' + result.error);
-            if (saveBtn) saveBtn.innerHTML = originalText;
-        }
-    } catch (error) {
-        console.error('Error saving project:', error);
-        alert('Error saving project. Please try again.');
-        if (saveBtn) {
-            saveBtn.innerHTML = '❌ Failed';
-            setTimeout(() => {
-                saveBtn.innerHTML = originalText;
-            }, 2000);
-        }
-    } finally {
-        if (saveBtn) {
-            saveBtn.classList.remove('saving');
-            saveBtn.disabled = false;
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showSuccessNotification(result.shareUrl);
+                if (saveBtn) saveBtn.innerHTML = '✅ Saved!';
+                setTimeout(() => {
+                    if (saveBtn) saveBtn.innerHTML = originalText;
+                }, 2000);
+
+                console.log('Project saved with assets:', {
+                    projectId: result.projectId,
+                    assetsCount: this.assets.length,
+                    assets: this.assets.map(a => a.name)
+                });
+            } else {
+                alert('Failed to save project: ' + result.error);
+                if (saveBtn) saveBtn.innerHTML = originalText;
+            }
+        } catch (error) {
+            console.error('Error saving project:', error);
+            alert('Error saving project. Please try again.');
+            if (saveBtn) {
+                saveBtn.innerHTML = '❌ Failed';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                }, 2000);
+            }
+        } finally {
+            if (saveBtn) {
+                saveBtn.classList.remove('saving');
+                saveBtn.disabled = false;
+            }
         }
     }
-}
 
-getProjectStructure() {
-    return {
-        html: Object.keys(this.files.html || {}),
-        css: Object.keys(this.files.css || {}),
-        js: Object.keys(this.files.js || {}),
-        assets: this.assets.map(a => a.name)
-    };
-}
+    getProjectStructure() {
+        return {
+            html: Object.keys(this.files.html || {}),
+            css: Object.keys(this.files.css || {}),
+            js: Object.keys(this.files.js || {}),
+            assets: this.assets.map(a => a.name)
+        };
+    }
 
-showSuccessNotification(url) {
-    navigator.clipboard.writeText(url).then(() => {
-        const n = document.getElementById('success-notification');
-        if (n) {
-            n.style.display = 'flex';
-            setTimeout(() => (n.style.display = 'none'), 4000);
-        }
-    }).catch(() => {
-        // ignore clipboard errors
-    });
-}
+    showSuccessNotification(url) {
+        navigator.clipboard.writeText(url).then(() => {
+            const n = document.getElementById('success-notification');
+            if (n) {
+                n.style.display = 'flex';
+                setTimeout(() => (n.style.display = 'none'), 4000);
+            }
+        }).catch(() => {
+            // ignore clipboard errors
+        });
+    }
 
     async showProjects() {
-    const token = Cookies.get('token');
+        const token = Cookies.get('token');
 
-    try {
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+        try {
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const res = await fetch('/api/frontend/projects', {
+                headers: headers
+            });
+
+            if (!res.ok) {
+                throw new Error(`Failed to load projects: ${res.status}`);
+            }
+
+            const projects = await res.json();
+            console.log('Loaded projects:', projects);
+            this.displayProjects(projects);
+
+            const projectsModal = document.getElementById('projects-modal');
+            if (projectsModal) projectsModal.style.display = 'block';
+
+        } catch (err) {
+            console.error('Error loading projects:', err);
+            alert("Error loading projects: " + err.message);
         }
-
-        const res = await fetch('/api/frontend/projects', {
-            headers: headers
-        });
-
-        if (!res.ok) {
-            throw new Error(`Failed to load projects: ${res.status}`);
-        }
-
-        const projects = await res.json();
-        console.log('Loaded projects:', projects);
-        this.displayProjects(projects);
-
-        const projectsModal = document.getElementById('projects-modal');
-        if (projectsModal) projectsModal.style.display = 'block';
-
-    } catch (err) {
-        console.error('Error loading projects:', err);
-        alert("Error loading projects: " + err.message);
-    }
-}
-
-displayProjects(projects) {
-    const list = document.getElementById('projects-list');
-    if (!list) return;
-
-    if (!projects || projects.length === 0) {
-        list.innerHTML = `<p style="text-align:center;padding:20px;color:#666;">No projects found. Create your first project!</p>`;
-        return;
     }
 
-    list.innerHTML = projects.map(p => `
+    displayProjects(projects) {
+        const list = document.getElementById('projects-list');
+        if (!list) return;
+
+        if (!projects || projects.length === 0) {
+            list.innerHTML = `<p style="text-align:center;padding:20px;color:#666;">No projects found. Create your first project!</p>`;
+            return;
+        }
+
+        list.innerHTML = projects.map(p => `
             <div class="project-item">
                 <div class="project-info">
                     <h3>${this.escapeHtml(p.name || 'Untitled Project')}</h3>
@@ -1107,134 +1107,134 @@ displayProjects(projects) {
                 </div>
             </div>
         `).join('');
-}
+    }
 
-debugAssets() {
-    console.log('=== ASSETS DEBUG INFO ===');
-    console.log('Current assets array:', this.assets);
-    console.log('Assets length:', this.assets.length);
-    console.log('LocalStorage assets:', localStorage.getItem('frontendEditor_assets'));
-    console.log('Assets in DOM:', document.querySelectorAll('.asset-item').length);
-    console.log('========================');
-}
+    debugAssets() {
+        console.log('=== ASSETS DEBUG INFO ===');
+        console.log('Current assets array:', this.assets);
+        console.log('Assets length:', this.assets.length);
+        console.log('LocalStorage assets:', localStorage.getItem('frontendEditor_assets'));
+        console.log('Assets in DOM:', document.querySelectorAll('.asset-item').length);
+        console.log('========================');
+    }
 
     async openProject(projectId) {
-    try {
-        const token = Cookies.get('token');
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        try {
+            const token = Cookies.get('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-        const response = await fetch(`/api/frontend/project/${projectId}`, {
-            headers: headers
-        });
+            const response = await fetch(`/api/frontend/project/${projectId}`, {
+                headers: headers
+            });
 
-        if (!response.ok) {
-            throw new Error('Failed to load project');
+            if (!response.ok) {
+                throw new Error('Failed to load project');
+            }
+
+            const project = await response.json();
+
+            // Load project data
+            document.getElementById('project-name').value = project.name;
+            this.files = project.files || { html: {}, css: {}, js: {} };
+
+            // ✅ FIX: Ensure all file types exist
+            if (!this.files.html) this.files.html = {};
+            if (!this.files.css) this.files.css = {};
+            if (!this.files.js) this.files.js = {};
+
+            this.updateFileTree();
+
+            // Set current files to first available files
+            const htmlFiles = Object.keys(this.files.html);
+            const cssFiles = Object.keys(this.files.css);
+            const jsFiles = Object.keys(this.files.js);
+
+            if (htmlFiles.length > 0) {
+                this.currentFile.html = htmlFiles[0];
+                this.loadFileContent('html', this.currentFile.html);
+            }
+
+            if (cssFiles.length > 0) {
+                this.currentFile.css = cssFiles[0];
+                this.loadFileContent('css', this.currentFile.css);
+            }
+
+            if (jsFiles.length > 0) {
+                this.currentFile.js = jsFiles[0];
+                this.loadFileContent('js', this.currentFile.js);
+            }
+
+            // Load assets
+            this.assets = project.assets || [];
+            this.saveAssetsToLocalStorage();
+
+            this.hideModal();
+            this.updatePreview();
+            this.updateFileSelectors();
+            this.switchTab('preview');
+
+        } catch (error) {
+            console.error('Error opening project:', error);
+            alert('Error opening project. The project may not exist or you may not have permission to access it.');
         }
-
-        const project = await response.json();
-
-        // Load project data
-        document.getElementById('project-name').value = project.name;
-        this.files = project.files || { html: {}, css: {}, js: {} };
-
-        // ✅ FIX: Ensure all file types exist
-        if (!this.files.html) this.files.html = {};
-        if (!this.files.css) this.files.css = {};
-        if (!this.files.js) this.files.js = {};
-
-        this.updateFileTree();
-
-        // Set current files to first available files
-        const htmlFiles = Object.keys(this.files.html);
-        const cssFiles = Object.keys(this.files.css);
-        const jsFiles = Object.keys(this.files.js);
-
-        if (htmlFiles.length > 0) {
-            this.currentFile.html = htmlFiles[0];
-            this.loadFileContent('html', this.currentFile.html);
-        }
-
-        if (cssFiles.length > 0) {
-            this.currentFile.css = cssFiles[0];
-            this.loadFileContent('css', this.currentFile.css);
-        }
-
-        if (jsFiles.length > 0) {
-            this.currentFile.js = jsFiles[0];
-            this.loadFileContent('js', this.currentFile.js);
-        }
-
-        // Load assets
-        this.assets = project.assets || [];
-        this.saveAssetsToLocalStorage();
-
-        this.hideModal();
-        this.updatePreview();
-        this.updateFileSelectors();
-        this.switchTab('preview');
-
-    } catch (error) {
-        console.error('Error opening project:', error);
-        alert('Error opening project. The project may not exist or you may not have permission to access it.');
     }
-}
 
     async deleteProject(id, name) {
-    const token = Cookies.get('token');
-    if (!token) return alert("Please login");
+        const token = Cookies.get('token');
+        if (!token) return alert("Please login");
 
-    if (!confirm(`Delete ${name}?`)) return;
+        if (!confirm(`Delete ${name}?`)) return;
 
-    try {
-        const res = await fetch(`/api/frontend/project/${id}`, {
-            method: "DELETE",
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        try {
+            const res = await fetch(`/api/frontend/project/${id}`, {
+                method: "DELETE",
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        if (!res.ok) throw new Error("Delete error");
+            if (!res.ok) throw new Error("Delete error");
 
-        this.showNotification(`Project "${name}" deleted`);
-        this.showProjects();
+            this.showNotification(`Project "${name}" deleted`);
+            this.showProjects();
 
-    } catch (err) {
-        console.error(err);
-        alert("Error deleting project");
+        } catch (err) {
+            console.error(err);
+            alert("Error deleting project");
+        }
     }
-}
 
-hideModal() {
-    const projectsModal = document.getElementById('projects-modal');
-    if (projectsModal) projectsModal.style.display = 'none';
-}
+    hideModal() {
+        const projectsModal = document.getElementById('projects-modal');
+        if (projectsModal) projectsModal.style.display = 'none';
+    }
 
-escapeHtml(str) {
-    if (!str) return '';
-    return str.toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
     // Debug method for testing
     async debugProjectSystem() {
-    console.log('=== PROJECT SYSTEM DEBUG ===');
+        console.log('=== PROJECT SYSTEM DEBUG ===');
 
-    // Test API connectivity
-    try {
-        const response = await fetch('/api/frontend/projects');
-        const projects = await response.json();
-        console.log('API Response:', projects);
-    } catch (error) {
-        console.error('API Error:', error);
+        // Test API connectivity
+        try {
+            const response = await fetch('/api/frontend/projects');
+            const projects = await response.json();
+            console.log('API Response:', projects);
+        } catch (error) {
+            console.error('API Error:', error);
+        }
+
+        // Test local storage
+        console.log('Local Storage Assets:', localStorage.getItem('frontendEditor_assets'));
+        console.log('Current Files:', this.files);
+        console.log('Current Assets:', this.assets);
     }
-
-    // Test local storage
-    console.log('Local Storage Assets:', localStorage.getItem('frontendEditor_assets'));
-    console.log('Current Files:', this.files);
-    console.log('Current Assets:', this.assets);
-}
 }
 
 /* ----------------------------------------------------

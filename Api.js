@@ -1366,10 +1366,10 @@ app.get('/frontend/:id', (req, res) => {
     try {
         const projectId = req.params.id;
 
-        // Safety check: if it looks like a filename, return 404 immediately
+        // Safety check: if it looks like a filename, return 404
         if (projectId.endsWith('.js') || projectId.endsWith('.css') || projectId.endsWith('.html')) {
-            console.log(`[DEBUG] Invalid project ID (looks like filename): ${projectId}`);
-            return res.status(404).send('Project not found. Invalid project ID.');
+            console.log(`[DEBUG] Blocking filename request: ${projectId}`);
+            return res.status(404).send('Page not found. Use project navigation.');
         }
 
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
