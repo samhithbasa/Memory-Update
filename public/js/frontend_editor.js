@@ -950,6 +950,13 @@ class EnhancedFrontendEditor {
             return '<!DOCTYPE html><html><head><title>Error</title></head><body><h1 style="color: red;">Error Generating Preview</h1><p>' + error.message + '</p><p>Check browser console for details.</p></body></html>';
         }
     }
+
+    // Add this method to your EnhancedFrontendEditor class
+    generateDeploymentHTML() {
+        console.log('🚀 Generating deployment HTML');
+        return this.generateFullHTML(); // Use the same method for consistency
+    }
+
     // Add this method in your class (anywhere, but near other setup methods is good)
     setupHashNavigation() {
         window.addEventListener('hashchange', () => {
@@ -1065,17 +1072,24 @@ class EnhancedFrontendEditor {
             if (cssEditor) this.saveCurrentFile('css', cssEditor.value);
             if (jsEditor) this.saveCurrentFile('js', jsEditor.value);
 
+            // ✅ CRITICAL: Generate the HTML that will be deployed
+            const deploymentHTML = this.generateFullHTML();
+
+            console.log('📦 Deployment HTML generated, length:', deploymentHTML.length);
+
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token} `
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     name: projectName,
                     files: this.files,
                     assets: this.assets,
-                    structure: this.getProjectStructure()
+                    structure: this.getProjectStructure(),
+                    // ✅ ADD THIS: Store the generated HTML for deployment
+                    deploymentHTML: deploymentHTML
                 })
             });
 
@@ -1088,11 +1102,7 @@ class EnhancedFrontendEditor {
                     if (saveBtn) saveBtn.innerHTML = originalText;
                 }, 2000);
 
-                console.log('Project saved with assets:', {
-                    projectId: result.projectId,
-                    assetsCount: this.assets.length,
-                    assets: this.assets.map(a => a.name)
-                });
+                console.log('Project saved with deployment HTML');
             } else {
                 alert('Failed to save project: ' + result.error);
                 if (saveBtn) saveBtn.innerHTML = originalText;

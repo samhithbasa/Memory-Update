@@ -1097,9 +1097,16 @@ app.get('/api/frontend/project/:id', async (req, res) => {
 });
 
 function generateDeployedHTML(projectData) {
-    const { files, assets, name } = projectData;
+
+    if (projectData.deploymentHTML) {
+        console.log('[DEBUG] Using pre-generated deployment HTML');
+        return projectData.deploymentHTML;
+    }
+    
+    console.log('[DEBUG] Generating HTML from scratch');
 
     // Safe access to files with fallbacks
+    const { files, assets, name } = projectData;
     const htmlFiles = files?.html || {};
     const cssFiles = files?.css || {};
     const jsFiles = files?.js || {};
@@ -1367,9 +1374,9 @@ app.get('/frontend/:id', (req, res) => {
         const projectId = req.params.id;
 
         // Safety check: if it looks like a filename, return 404
-        if (projectId.endsWith('.js') || projectId.endsWith('.css') || projectId.endsWith('.html')) {
-            console.log(`[DEBUG] Blocking filename request: ${projectId}`);
-            return res.status(404).send('Page not found. Use project navigation.');
+        if (projectId.endsWith('.js') || projectId.endsWith('.css')) {
+            console.log(`[DEBUG] Blocking file request: ${projectId}`);
+            return res.status(404).send('File not found.');
         }
 
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
@@ -1377,9 +1384,10 @@ app.get('/frontend/:id', (req, res) => {
         console.log(`[DEBUG] Loading project: ${projectId}`);
         console.log(`[DEBUG] Project path: ${projectPath}`);
 
-        if (!fs.existsSync(projectPath)) {
-            console.log(`[DEBUG] Project file not found: ${projectPath}`);
-            return res.status(404).send('Project not found');
+        if (!fs.existsSync(projectPath) && projectId.endsWith('.html')) {
+            // Extract project ID from referrer or use fallback
+            console.log(`[DEBUG] Page request: ${projectId}, serving main project`);
+            // Find the project somehow or serve default
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
