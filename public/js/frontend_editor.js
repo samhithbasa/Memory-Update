@@ -541,25 +541,30 @@ class EnhancedFrontendEditor {
         [...e.target.files].forEach(file => {
             const reader = new FileReader();
             reader.onload = (ev) => {
+                // Ensure we have proper base64 data URL
+                let dataUrl = ev.target.result;
+                if (!dataUrl.startsWith('data:')) {
+                    // Convert to base64 data URL
+                    dataUrl = `data:${file.type};base64,${btoa(ev.target.result)}`;
+                }
+
                 this.assets.push({
                     name: file.name,
                     type: file.type,
-                    data: ev.target.result,
+                    data: dataUrl,
                     size: file.size,
                     uploadedAt: new Date()
                 });
 
-                // Save assets to localStorage immediately after upload
                 this.saveAssetsToLocalStorage();
                 this.renderAssetsList();
-
-                console.log('Asset uploaded and saved to localStorage:', file.name);
             };
+
+            // Read as data URL
             reader.readAsDataURL(file);
         });
 
-        // Clear the file input
-        if (e && e.target) e.target.value = '';
+        e.target.value = '';
     }
 
     renderAssetsList() {
@@ -645,51 +650,17 @@ class EnhancedFrontendEditor {
     generateFullHTML() {
         // Get all HTML files
         const htmlFiles = this.files.html || {};
-        const currentHtmlFile = this.currentFile.html || Object.keys(htmlFiles)[0] || 'index.html';
-        const mainHTML = htmlFiles[currentHtmlFile] || '<h1>No content</h1>';
-
-        // Combine all CSS files
-        let combinedCSS = '';
-        if (this.files.css) {
-            Object.values(this.files.css).forEach(css => {
-                if (css && typeof css === 'string') {
-                    combinedCSS += css + '\n';
-                }
-            });
-        }
-
-        // Combine all JS files safely
-        let combinedJS = '';
-        if (this.files.js) {
-            Object.values(this.files.js).forEach(js => {
-                if (js && typeof js === 'string') {
-                    // Properly escape JavaScript content
-                    const safeJS = js
-                        .replace(/<\/script>/gi, '<\\/script>')
-                        .replace(/`/g, '\\`')
-                        .replace(/\${/g, '\\${');
-                    combinedJS += safeJS + '\n';
-                }
-            });
-        }
+        const cssFiles = this.files.css || {};
+        const jsFiles = this.files.js || {};
 
         const projectName = document.getElementById('project-name')?.value || 'My Project';
-        const allHtmlFiles = Object.keys(htmlFiles);
 
-        // Get current project ID from URL or generate a placeholder
-        const currentUrl = window.location.href;
-        const projectIdMatch = currentUrl.match(/frontend\/([a-f0-9-]+)/);
-        const projectId = projectIdMatch ? projectIdMatch[1] : 'current-project';
-
-        // Process the main HTML to convert navigation links
-        let processedHTML = mainHTML
-            // Convert href="about.html" to onclick navigation
-            .replace(/<a[^>]*href=["']([^"']*\.html)["'][^>]*>/gi, (match, pageName) => {
-                return match.replace(`href="${pageName}"`, `href="#" onclick="window.loadPage('${pageName}')"`);
-            })
-            // Remove any external resource references
-            .replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '')
-            .replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
+        // Create a map of all files for easy access
+        const allFiles = {
+            html: htmlFiles,
+            css: cssFiles,
+            js: jsFiles
+        };
 
         return `<!DOCTYPE html>
 <html>
@@ -698,15 +669,7 @@ class EnhancedFrontendEditor {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${projectName}</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: white;
-            color: #333;
-        }
-        
-        /* Navigation styles */
+        /* Multi-page navigation styles */
         .project-navigation {
             background: #2c3e50;
             padding: 15px;
@@ -716,171 +679,125 @@ class EnhancedFrontendEditor {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            justify-content: center;
         }
         .nav-btn {
             background: #34495e;
             color: white;
-            border: 1px solid #4a6278;
+            border: none;
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
             text-decoration: none;
-            border: none;
-            font-size: 14px;
         }
         .nav-btn:hover {
             background: #4a6278;
         }
         .nav-btn.active {
             background: #3498db;
-            border-color: #2980b9;
         }
         
-        ${combinedCSS}
+        /* Asset handling */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* CSS from all files */
+        ${Object.values(cssFiles).join('\n')}
     </style>
 </head>
 <body>
-    <!-- Multi-page Navigation -->
-    ${allHtmlFiles.length > 1 ? `
+    <!-- Dynamic navigation based on HTML files -->
+    ${Object.keys(htmlFiles).length > 1 ? `
     <nav class="project-navigation">
         <div class="nav-buttons">
-            ${allHtmlFiles.map(page =>
-            `<button class="nav-btn ${page === currentHtmlFile ? 'active' : ''}" 
-                        onclick="window.loadPage('${page}')">
-                    ${page.replace('.html', '').charAt(0).toUpperCase() + page.replace('.html', '').slice(1)}
+            ${Object.keys(htmlFiles).map(page =>
+            `<button class="nav-btn" onclick="loadPage('${page}')">
+                    ${page.replace('.html', '')}
                 </button>`
         ).join('')}
         </div>
     </nav>
     ` : ''}
     
-    <div id="content">
-        ${processedHTML}
+    <div id="page-content">
+        <!-- Content will be loaded here dynamically -->
     </div>
 
     <script>
-        // Project data
-        const projectPages = ${JSON.stringify(htmlFiles)};
-        const projectAssets = ${JSON.stringify(this.assets || [])};
-        const currentProject = '${projectName}';
-        const allPageNames = ${JSON.stringify(allHtmlFiles)};
-        const currentProjectId = '${projectId}';
-
-        // Multi-page navigation function
-        function loadPage(pageName) {
-            console.log('Loading page:', pageName, 'for project:', currentProjectId);
-            
-            if (projectPages[pageName]) {
-                // Process the HTML for the new page
-                let pageHTML = projectPages[pageName]
-                    .replace(/<link[^>]*href=["'][^"']*\\.css["'][^>]*>/gi, '')
-                    .replace(/<script[^>]*src=["'][^"']*\\.js["'][^>]*><\\/script>/gi, '')
-                    // Convert navigation links in the loaded page too
-                    .replace(/<a[^>]*href=["']([^"']*\\.html)["'][^>]*>/gi, (match, hrefPage) => {
-                        return match.replace(\`href="\${hrefPage}"\`, \`href="#" onclick="window.loadPage('\${hrefPage}')"\`);
-                    });
-                
-                document.getElementById('content').innerHTML = pageHTML;
-                
-                // Update active navigation button
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.textContent.trim().toLowerCase() === pageName.replace('.html', '').toLowerCase() || 
-                        btn.getAttribute('onclick').includes(pageName)) {
-                        btn.classList.add('active');
-                    }
-                });
-                
-                // Update browser URL without reloading the page
-                try {
-                    const newUrl = \`/frontend/\${currentProjectId}#\${pageName}\`;
-                    window.history.pushState({ page: pageName, projectId: currentProjectId }, '', newUrl);
-                    console.log('URL updated to:', newUrl);
-                } catch (error) {
-                    console.log('URL update failed, using hash navigation:', error);
-                    window.location.hash = pageName;
-                }
-                
-                console.log('Page loaded successfully:', pageName);
-                
-                // Re-initialize any JavaScript for the new page
-                setTimeout(() => {
-                    try {
-                        // Re-run any initialization scripts
-                        if (typeof initPage === 'function') {
-                            initPage();
-                        }
-                    } catch (error) {
-                        console.log('No page-specific initialization needed');
-                    }
-                }, 100);
-                
-            } else {
-                console.error('Page not found:', pageName);
-                document.getElementById('content').innerHTML = 
-                    '<div style="padding: 20px; text-align: center;"><h1>Page Not Found</h1><p>The page "' + pageName + '" was not found in this project.</p></div>';
+        // Store all project data
+        const projectData = ${JSON.stringify({
+            html: htmlFiles,
+            css: cssFiles,
+            js: jsFiles,
+            assets: this.assets,
+            name: projectName
+        })};
+        
+        // Asset handling function
+        function getAssetUrl(assetName) {
+            const asset = projectData.assets.find(a => a.name === assetName);
+            if (asset) {
+                return asset.data; // Base64 data URL
             }
+            return '';
         }
-
-        // Handle browser back/forward buttons
-        window.addEventListener('popstate', function(event) {
-            console.log('Popstate event:', event.state);
+        
+        // Page loading function
+        function loadPage(pageName) {
+            const html = projectData.html[pageName];
+            if (!html) {
+                document.getElementById('page-content').innerHTML = 
+                    '<h1>Page not found</h1><p>The requested page does not exist.</p>';
+                return;
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.trim() === pageName.replace('.html', '')) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Load the page content
+            document.getElementById('page-content').innerHTML = html;
+            
+            // Execute any JavaScript for this page
+            const scripts = projectData.js;
+            Object.values(scripts).forEach(scriptCode => {
+                try {
+                    // Create a script element
+                    const script = document.createElement('script');
+                    script.textContent = scriptCode;
+                    document.getElementById('page-content').appendChild(script);
+                } catch (error) {
+                    console.error('Error executing script:', error);
+                }
+            });
+            
+            // Update URL without reloading
+            history.pushState({ page: pageName }, '', \`?page=\${pageName}\`);
+        }
+        
+        // Handle browser back/forward
+        window.addEventListener('popstate', (event) => {
             if (event.state && event.state.page) {
                 loadPage(event.state.page);
-            } else {
-                // Load from hash or default page
-                const hash = window.location.hash.replace('#', '');
-                if (hash && projectPages[hash]) {
-                    loadPage(hash);
-                } else {
-                    loadPage('index.html');
-                }
             }
         });
-
-        // Handle page load with hash
-        window.addEventListener('load', function() {
-            const hash = window.location.hash.replace('#', '');
-            if (hash && projectPages[hash] && hash !== (currentHtmlFile || 'index.html')) {
-                loadPage(hash);
-            }
+        
+        // Load initial page from URL or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialPage = urlParams.get('page') || 'index.html';
+        
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPage(initialPage);
         });
-
+        
         // Make loadPage available globally
         window.loadPage = loadPage;
-        window.projectPages = projectPages;
-        window.projectAssets = projectAssets;
-        window.allPageNames = allPageNames;
-        window.currentProjectId = currentProjectId;
-
-        // Safe script execution with error handling
-        (function() {
-            try {
-                ${combinedJS}
-            } catch (error) {
-                console.error('Script execution error in project:', error);
-            }
-        })();
-
-        // Project info for debugging
-        console.log('Project "' + currentProject + '" loaded successfully');
-        console.log('Project ID:', currentProjectId);
-        console.log('Pages available:', allPageNames.length);
-        console.log('Assets:', projectAssets.length);
-        console.log('All pages:', allPageNames);
-        console.log('Current URL:', window.location.href);
-        
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded and parsed');
-            
-            // Load page from hash if present
-            const hash = window.location.hash.replace('#', '');
-            if (hash && projectPages[hash] && hash !== '${currentHtmlFile}') {
-                setTimeout(() => loadPage(hash), 100);
-            }
-        });
     </script>
 </body>
 </html>`;
@@ -977,7 +894,9 @@ class EnhancedFrontendEditor {
         }
 
         const projectNameEl = document.getElementById('project-name');
-        const projectName = projectNameEl ? projectNameEl.value.trim() || 'Untitled Project' : 'Untitled Project';
+        const projectName = projectNameEl
+            ? projectNameEl.value.trim() || 'Untitled Project'
+            : 'Untitled Project';
 
         try {
             // Ensure all current file content is saved before sending
@@ -989,6 +908,14 @@ class EnhancedFrontendEditor {
             if (cssEditor) this.saveCurrentFile('css', cssEditor.value);
             if (jsEditor) this.saveCurrentFile('js', jsEditor.value);
 
+            // ✅ Ensure assets are properly serialized
+            const assetsToSave = this.assets.map(asset => ({
+                name: asset.name,
+                type: asset.type,
+                data: asset.data, // base64 string
+                size: asset.size
+            }));
+
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
                 headers: {
@@ -998,7 +925,7 @@ class EnhancedFrontendEditor {
                 body: JSON.stringify({
                     name: projectName,
                     files: this.files,
-                    assets: this.assets,
+                    assets: assetsToSave,
                     structure: this.getProjectStructure()
                 })
             });
@@ -1007,6 +934,7 @@ class EnhancedFrontendEditor {
 
             if (result.success) {
                 this.showSuccessNotification(result.shareUrl);
+
                 if (saveBtn) saveBtn.innerHTML = '✅ Saved!';
                 setTimeout(() => {
                     if (saveBtn) saveBtn.innerHTML = originalText;
@@ -1014,8 +942,8 @@ class EnhancedFrontendEditor {
 
                 console.log('Project saved with assets:', {
                     projectId: result.projectId,
-                    assetsCount: this.assets.length,
-                    assets: this.assets.map(a => a.name)
+                    assetsCount: assetsToSave.length,
+                    assets: assetsToSave.map(a => a.name)
                 });
             } else {
                 alert('Failed to save project: ' + result.error);
@@ -1024,6 +952,7 @@ class EnhancedFrontendEditor {
         } catch (error) {
             console.error('Error saving project:', error);
             alert('Error saving project. Please try again.');
+
             if (saveBtn) {
                 saveBtn.innerHTML = '❌ Failed';
                 setTimeout(() => {
@@ -1037,6 +966,7 @@ class EnhancedFrontendEditor {
             }
         }
     }
+
 
     getProjectStructure() {
         return {

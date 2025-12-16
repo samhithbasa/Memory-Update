@@ -1362,6 +1362,66 @@ app.get('/frontend/:projectId/:filename', (req, res) => {
     }
 });
 
+// Add this route BEFORE the catch-all route
+app.get('/project/:projectId', (req, res) => {
+    try {
+        const projectId = req.params.projectId;
+        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
+
+        if (!fs.existsSync(projectPath)) {
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        
+        // Generate proper multi-page HTML
+        const htmlContent = generateMultiPageHTML(projectData);
+        res.send(htmlContent);
+    } catch (error) {
+        console.error('Error serving project:', error);
+        res.status(500).send('Error loading project');
+    }
+});
+
+// Update the asset serving route
+app.get('/api/assets/:projectId/:assetName', (req, res) => {
+    try {
+        const { projectId, assetName } = req.params;
+        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
+
+        if (!fs.existsSync(projectPath)) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
+        const asset = projectData.assets?.find(a => a.name === assetName);
+
+        if (!asset) {
+            return res.status(404).json({ error: 'Asset not found' });
+        }
+
+        // Extract content type from base64 data URL
+        const matches = asset.data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        
+        if (matches && matches.length === 3) {
+            const contentType = matches[1];
+            const data = Buffer.from(matches[2], 'base64');
+            
+            res.setHeader('Content-Type', contentType);
+            res.send(data);
+        } else {
+            // If it's not base64, send as-is
+            res.send(asset.data);
+        }
+    } catch (error) {
+        console.error('Error serving asset:', error);
+        res.status(500).json({ error: 'Failed to serve asset' });
+    }
+});
+
+// Remove or modify the conflicting route
+// Comment out or remove this line:
+// app.get('/frontend/:id', (req, res) => { ... });
 app.get('/frontend/:id', (req, res) => {
     try {
         const projectId = req.params.id;
@@ -1401,7 +1461,6 @@ app.get('/frontend/:id', (req, res) => {
         res.status(500).send('Error loading project: ' + error.message);
     }
 });
-
 
 
 // Update the projects route to be more permissive
