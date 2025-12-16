@@ -61,6 +61,7 @@ class EnhancedFrontendEditor {
         this.updatePreview();
         this.checkAuthStatus();
         this.setupAutoSave();
+        this.setupHashNavigation();
 
         // Ensure assets are displayed if assets manager is open
         setTimeout(() => {
@@ -642,250 +643,238 @@ class EnhancedFrontendEditor {
         }
     }
 
+    // Add this method right after updatePreview()
+    processHTMLForPreview(html) {
+        // 1. Convert all .html links to loadPage calls
+        let processed = html.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']*\.html)(?:#[^"']*)?["'][^>]*>/gi,
+            (match, href) => {
+                // Extract just the filename from path
+                const filename = href.split('/').pop();
+
+                // Check if this page exists in our project
+                const pageExists = this.files.html && this.files.html[filename];
+
+                if (pageExists) {
+                    // Replace href with onclick loadPage
+                    return match.replace(
+                        `href="${href}"`,
+                        `href="#" onclick="window.loadPage('${filename}'); return false;"`
+                    );
+                }
+                // If page doesn't exist, keep original link
+                return match;
+            }
+        );
+
+        // 2. Convert image src to use uploaded assets
+        processed = processed.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, src) => {
+            const filename = src.split('/').pop();
+            const asset = this.assets.find(a => a.name === filename);
+
+            if (asset) {
+                return match.replace(`src="${src}"`, `src="${asset.data}"`);
+            }
+            return match;
+        });
+
+        // 3. Remove external CSS/JS references (they're already included)
+        processed = processed.replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '');
+        processed = processed.replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
+
+        return processed;
+    }
+
     generateFullHTML() {
-        // Get all HTML files
         const htmlFiles = this.files.html || {};
-        const currentHtmlFile = this.currentFile.html || Object.keys(htmlFiles)[0] || 'index.html';
+        const cssFiles = this.files.css || {};
+        const jsFiles = this.files.js || {};
+
+        const currentHtmlFile = this.currentFile.html || 'index.html';
         const mainHTML = htmlFiles[currentHtmlFile] || '<h1>No content</h1>';
 
-        // Combine all CSS files
+        // Process the HTML for preview
+        const processedHTML = this.processHTMLForPreview(mainHTML);
+
+        // Combine all CSS
         let combinedCSS = '';
-        if (this.files.css) {
-            Object.values(this.files.css).forEach(css => {
-                if (css && typeof css === 'string') {
-                    combinedCSS += css + '\n';
-                }
-            });
-        }
+        Object.values(cssFiles).forEach(css => {
+            if (css && typeof css === 'string') {
+                combinedCSS += css + '\n';
+            }
+        });
 
-        // Combine all JS files safely
+        // Combine all JS safely
         let combinedJS = '';
-        if (this.files.js) {
-            Object.values(this.files.js).forEach(js => {
-                if (js && typeof js === 'string') {
-                    // Properly escape JavaScript content
-                    const safeJS = js
-                        .replace(/<\/script>/gi, '<\\/script>')
-                        .replace(/`/g, '\\`')
-                        .replace(/\${/g, '\\${');
-                    combinedJS += safeJS + '\n';
-                }
-            });
-        }
+        Object.values(jsFiles).forEach(js => {
+            if (js && typeof js === 'string') {
+                const safeJS = js
+                    .replace(/<\/script>/gi, '<\\/script>')
+                    .replace(/`/g, '\\`')
+                    .replace(/\${/g, '\\${');
+                combinedJS += safeJS + '\n';
+            }
+        });
 
-        const projectName = document.getElementById('project-name')?.value || 'My Project';
         const allHtmlFiles = Object.keys(htmlFiles);
-
-        // Get current project ID from URL or generate a placeholder
-        const currentUrl = window.location.href;
-        const projectIdMatch = currentUrl.match(/frontend\/([a-f0-9-]+)/);
-        const projectId = projectIdMatch ? projectIdMatch[1] : 'current-project';
-
-        // Process the main HTML to convert navigation links
-        let processedHTML = mainHTML
-            // Convert href="about.html" to onclick navigation
-            .replace(/<a[^>]*href=["']([^"']*\.html)["'][^>]*>/gi, (match, pageName) => {
-                return match.replace(`href="${pageName}"`, `href="#" onclick="window.loadPage('${pageName}')"`);
-            })
-            // Remove any external resource references
-            .replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '')
-            .replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
 
         return `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectName}</title>
+    <title>${document.getElementById('project-name')?.value || 'My Project'}</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: white;
-            color: #333;
-        }
-        
-        /* Navigation styles */
-        .project-navigation {
-            background: #2c3e50;
-            padding: 15px;
+        /* Navigation styles for missing nav */
+        .auto-nav {
+            background: #f5f5f5;
+            padding: 10px;
             margin-bottom: 20px;
+            border-radius: 5px;
+            display: ${allHtmlFiles.length > 1 ? 'block' : 'none'};
         }
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .nav-btn {
-            background: #34495e;
-            color: white;
-            border: 1px solid #4a6278;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
+        .auto-nav a {
+            color: #3498db;
             text-decoration: none;
-            border: none;
-            font-size: 14px;
+            margin: 0 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
         }
-        .nav-btn:hover {
-            background: #4a6278;
-        }
-        .nav-btn.active {
+        .auto-nav a:hover {
             background: #3498db;
-            border-color: #2980b9;
+            color: white;
         }
         
         ${combinedCSS}
     </style>
 </head>
 <body>
-    <!-- Multi-page Navigation -->
+    <!-- Auto-generated navigation if user doesn't have one -->
     ${allHtmlFiles.length > 1 ? `
-    <nav class="project-navigation">
-        <div class="nav-buttons">
-            ${allHtmlFiles.map(page =>
-            `<button class="nav-btn ${page === currentHtmlFile ? 'active' : ''}" 
-                        onclick="window.loadPage('${page}')">
-                    ${page.replace('.html', '').charAt(0).toUpperCase() + page.replace('.html', '').slice(1)}
-                </button>`
-        ).join('')}
-        </div>
-    </nav>
+    <div class="auto-nav">
+        <strong>Pages:</strong>
+        ${allHtmlFiles.map(page =>
+            `<a href="#" onclick="window.loadPage('${page}')">${page.replace('.html', '')}</a>`
+        ).join(' | ')}
+    </div>
     ` : ''}
     
-    <div id="content">
+    <div id="page-content">
         ${processedHTML}
     </div>
 
     <script>
         // Project data
-        const projectPages = ${JSON.stringify(htmlFiles)};
-        const projectAssets = ${JSON.stringify(this.assets || [])};
-        const currentProject = '${projectName}';
-        const allPageNames = ${JSON.stringify(allHtmlFiles)};
-        const currentProjectId = '${projectId}';
-
-        // Multi-page navigation function
+        const projectData = {
+            html: ${JSON.stringify(htmlFiles)},
+            css: ${JSON.stringify(cssFiles)},
+            js: ${JSON.stringify(jsFiles)},
+            assets: ${JSON.stringify(this.assets || [])},
+            allPages: ${JSON.stringify(allHtmlFiles)}
+        };
+        
+        // Enhanced loadPage function
         function loadPage(pageName) {
-            console.log('Loading page:', pageName, 'for project:', currentProjectId);
+            console.log('Loading page:', pageName);
             
-            if (projectPages[pageName]) {
-                // Process the HTML for the new page
-                let pageHTML = projectPages[pageName]
-                    .replace(/<link[^>]*href=["'][^"']*\\.css["'][^>]*>/gi, '')
-                    .replace(/<script[^>]*src=["'][^"']*\\.js["'][^>]*><\\/script>/gi, '')
-                    // Convert navigation links in the loaded page too
-                    .replace(/<a[^>]*href=["']([^"']*\\.html)["'][^>]*>/gi, (match, hrefPage) => {
-                        return match.replace(\`href="\${hrefPage}"\`, \`href="#" onclick="window.loadPage('\${hrefPage}')"\`);
-                    });
-                
-                document.getElementById('content').innerHTML = pageHTML;
-                
-                // Update active navigation button
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.textContent.trim().toLowerCase() === pageName.replace('.html', '').toLowerCase() || 
-                        btn.getAttribute('onclick').includes(pageName)) {
-                        btn.classList.add('active');
-                    }
-                });
-                
-                // Update browser URL without reloading the page
-                try {
-                    const newUrl = \`/frontend/\${currentProjectId}#\${pageName}\`;
-                    window.history.pushState({ page: pageName, projectId: currentProjectId }, '', newUrl);
-                    console.log('URL updated to:', newUrl);
-                } catch (error) {
-                    console.log('URL update failed, using hash navigation:', error);
-                    window.location.hash = pageName;
-                }
-                
-                console.log('Page loaded successfully:', pageName);
-                
-                // Re-initialize any JavaScript for the new page
-                setTimeout(() => {
-                    try {
-                        // Re-run any initialization scripts
-                        if (typeof initPage === 'function') {
-                            initPage();
-                        }
-                    } catch (error) {
-                        console.log('No page-specific initialization needed');
-                    }
-                }, 100);
-                
-            } else {
-                console.error('Page not found:', pageName);
-                document.getElementById('content').innerHTML = 
-                    '<div style="padding: 20px; text-align: center;"><h1>Page Not Found</h1><p>The page "' + pageName + '" was not found in this project.</p></div>';
+            const html = projectData.html[pageName];
+            if (!html) {
+                document.getElementById('page-content').innerHTML = 
+                    '<div style="padding: 20px; border: 2px solid #f44336; border-radius: 5px;">' +
+                    '<h2>Page Not Found</h2>' +
+                    '<p>The page <strong>' + pageName + '</strong> was not found in this project.</p>' +
+                    '</div>';
+                return;
             }
+            
+            // Process the HTML (same as server-side processing)
+            let processedHtml = html
+                // Convert links
+                .replace(/<a\\s+(?:[^>]*?\\s+)?href=["']([^"']*\\.html)(?:#[^"']*)?["'][^>]*>/gi, 
+                    (match, href) => {
+                        const filename = href.split('/').pop();
+                        const pageExists = projectData.html[filename];
+                        if (pageExists) {
+                            return match.replace(
+                                \`href="\${href}"\`, 
+                                \`href="#" onclick="loadPage('\${filename}'); return false;"\`
+                            );
+                        }
+                        return match;
+                    })
+                // Convert images
+                .replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, src) => {
+                    const filename = src.split('/').pop();
+                    const asset = projectData.assets.find(a => a.name === filename);
+                    if (asset) {
+                        return match.replace(\`src="\${src}"\`, \`src="\${asset.data}"\`);
+                    }
+                    return match;
+                });
+            
+            // Update content
+            document.getElementById('page-content').innerHTML = processedHtml;
+            
+            // Update URL
+            history.pushState({ page: pageName }, '', \`?page=\${pageName}\`);
+            
+            // Update auto-nav active state
+            document.querySelectorAll('.auto-nav a').forEach(link => {
+                link.style.fontWeight = link.getAttribute('onclick')?.includes(pageName) ? 'bold' : 'normal';
+            });
+            
+            console.log('Page loaded successfully');
         }
-
-        // Handle browser back/forward buttons
+        
+        // Handle browser navigation
         window.addEventListener('popstate', function(event) {
-            console.log('Popstate event:', event.state);
             if (event.state && event.state.page) {
                 loadPage(event.state.page);
-            } else {
-                // Load from hash or default page
-                const hash = window.location.hash.replace('#', '');
-                if (hash && projectPages[hash]) {
-                    loadPage(hash);
-                } else {
-                    loadPage('index.html');
-                }
             }
         });
-
-        // Handle page load with hash
-        window.addEventListener('load', function() {
-            const hash = window.location.hash.replace('#', '');
-            if (hash && projectPages[hash] && hash !== (currentHtmlFile || 'index.html')) {
-                loadPage(hash);
-            }
-        });
-
+        
         // Make loadPage available globally
         window.loadPage = loadPage;
-        window.projectPages = projectPages;
-        window.projectAssets = projectAssets;
-        window.allPageNames = allPageNames;
-        window.currentProjectId = currentProjectId;
-
-        // Safe script execution with error handling
-        (function() {
-            try {
-                ${combinedJS}
-            } catch (error) {
-                console.error('Script execution error in project:', error);
-            }
-        })();
-
-        // Project info for debugging
-        console.log('Project "' + currentProject + '" loaded successfully');
-        console.log('Project ID:', currentProjectId);
-        console.log('Pages available:', allPageNames.length);
-        console.log('Assets:', projectAssets.length);
-        console.log('All pages:', allPageNames);
-        console.log('Current URL:', window.location.href);
+        window.projectData = projectData;
         
-        // Initialize the page
+        // Load initial page
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialPage = urlParams.get('page') || '${currentHtmlFile}' || 'index.html';
+        
+        // Execute combined JavaScript
+        try {
+            ${combinedJS}
+        } catch (error) {
+            console.error('JavaScript error:', error);
+        }
+        
+        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded and parsed');
-            
-            // Load page from hash if present
-            const hash = window.location.hash.replace('#', '');
-            if (hash && projectPages[hash] && hash !== '${currentHtmlFile}') {
-                setTimeout(() => loadPage(hash), 100);
-            }
+            loadPage(initialPage);
         });
+        
+        // Also handle direct calls after load
+        setTimeout(() => {
+            if (!window.location.search.includes('page=')) {
+                loadPage(initialPage);
+            }
+        }, 100);
     </script>
 </body>
 </html>`;
     }
 
+    // Add this method in your class (anywhere, but near other setup methods is good)
+    setupHashNavigation() {
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && this.files.html && this.files.html[hash]) {
+                // If you have a loadPage method in the editor itself
+                if (this.loadPage) {
+                    this.loadPage(hash);
+                }
+            }
+        });
+    }
     /* ----------------------------------------------------
    PREVIEW CONTROLS - MISSING METHODS
 ---------------------------------------------------- */
