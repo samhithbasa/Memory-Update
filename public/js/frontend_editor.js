@@ -770,16 +770,16 @@ class EnhancedFrontendEditor {
                 });
             }
 
-            // Combine JS - escape for insertion into script tag
+            // Combine JS - PROPERLY ESCAPE backticks and template literals
             let combinedJS = '';
             if (jsFiles) {
                 Object.values(jsFiles).forEach(js => {
                     if (js && typeof js === 'string') {
-                        // Escape script tags to prevent breaking out of script block
+                        // Escape backticks, template literals, and script tags
                         const safeJS = js
-                            .replace(/<\/script>/gi, '<\\/script>')
-                            .replace(/`/g, '\\`')
-                            .replace(/\${/g, '\\${');
+                            .replace(/`/g, '\\`')           // Escape backticks
+                            .replace(/\${/g, '\\${')         // Escape template literal placeholders
+                            .replace(/<\/script>/gi, '<\\/script>');  // Escape script tags
                         combinedJS += safeJS + '\n';
                     }
                 });
@@ -812,7 +812,7 @@ class EnhancedFrontendEditor {
                 });
             }
 
-            // Generate the HTML
+            // Generate the HTML with SIMPLIFIED JavaScript
             const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -873,47 +873,101 @@ class EnhancedFrontendEditor {
     </div>
 
     <script>
-    // ULTRA SIMPLE VERSION - No regex complexity
-    const pages = ${JSON.stringify(htmlFiles)};
-    const assets = ${JSON.stringify(this.assets || [])};
-    
-    function loadPage(pageName) {
-        if (pages[pageName]) {
-            let pageHTML = pages[pageName];
+        // ========== SIMPLE PAGE DATA ==========
+        const pages = ${JSON.stringify(htmlFiles)};
+        const assets = ${JSON.stringify(this.assets || [])};
+        
+        console.log('Project loaded. Pages available:', Object.keys(pages));
+        
+        // ========== SIMPLE LOAD PAGE FUNCTION ==========
+        function loadPage(pageName) {
+            console.log('Loading page:', pageName);
             
-            // Simple asset replacement - string methods only
-            if (assets) {
-                assets.forEach(asset => {
-                    if (asset.data && asset.name) {
-                        // Replace all occurrences
-                        while (pageHTML.includes('src="' + asset.name + '"')) {
-                            pageHTML = pageHTML.replace('src="' + asset.name + '"', 'src="' + asset.data + '"');
+            if (pages[pageName]) {
+                let pageHTML = pages[pageName];
+                
+                // Simple asset replacement using string methods
+                if (assets && assets.length > 0) {
+                    assets.forEach(asset => {
+                        if (asset.data && asset.name) {
+                            // Replace all occurrences of the asset name
+                            pageHTML = pageHTML.split('src="' + asset.name + '"').join('src="' + asset.data + '"');
+                            pageHTML = pageHTML.split("src='" + asset.name + "'").join('src="' + asset.data + '"');
+                            pageHTML = pageHTML.split('href="' + asset.name + '"').join('href="' + asset.data + '"');
+                            pageHTML = pageHTML.split("href='" + asset.name + "'").join('href="' + asset.data + '"');
                         }
-                        while (pageHTML.includes("src='" + asset.name + "'")) {
-                            pageHTML = pageHTML.replace("src='" + asset.name + "'", 'src="' + asset.data + '"');
+                    });
+                }
+                
+                // Simple link conversion
+                pageHTML = pageHTML.replace(
+                    /<a\\\\s+(?:[^>]*?\\\\s+)?href=["']([^"']*\\\\.html)(?:#[^"']*)?["'][^>]*>/gi,
+                    function(match, href) {
+                        const page = href.split('/').pop();
+                        if (pages[page]) {
+                            return match.replace(
+                                'href="' + href + '"',
+                                'href="#" onclick="loadPage(\\\\'' + page + '\\\\'); return false;"'
+                            );
                         }
+                        return match;
                     }
-                });
+                );
+                
+                document.getElementById('page-content').innerHTML = pageHTML;
+                window.location.hash = pageName;
+                console.log('Page loaded:', pageName);
+            } else {
+                document.getElementById('page-content').innerHTML = 
+                    '<h2 style="color: red; padding: 20px;">Page not found: ' + pageName + '</h2>';
             }
+        }
+        
+        // ========== HASH CHANGE HANDLER ==========
+        window.addEventListener('hashchange', function() {
+            const pageName = window.location.hash.replace('#', '');
+            if (pageName && pages[pageName]) {
+                loadPage(pageName);
+            }
+        });
+        
+        // ========== INITIAL LOAD ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            const hash = window.location.hash.replace('#', '');
+            const initialPage = hash || '${currentHtmlFile}' || 'index.html';
             
-            document.getElementById('page-content').innerHTML = pageHTML;
-            window.location.hash = pageName;
+            console.log('Loading initial page:', initialPage);
+            
+            if (pages[initialPage]) {
+                // Process assets for initial page
+                let initialHTML = pages[initialPage];
+                if (assets && assets.length > 0) {
+                    assets.forEach(asset => {
+                        if (asset.data && asset.name) {
+                            initialHTML = initialHTML
+                                .split('src="' + asset.name + '"').join('src="' + asset.data + '"')
+                                .split("src='" + asset.name + "'").join('src="' + asset.data + '"');
+                        }
+                    });
+                }
+                
+                document.getElementById('page-content').innerHTML = initialHTML;
+            }
+        });
+        
+        // ========== GLOBAL ACCESS ==========
+        window.loadPage = loadPage;
+        window.pages = pages;
+        
+        // ========== RUN PROJECT JAVASCRIPT ==========
+        try {
+            ${combinedJS}
+        } catch (error) {
+            console.error('JavaScript error:', error);
         }
-    }
-    
-    // Make function available
-    window.loadPage = loadPage;
-    
-    // Load initial page
-    document.addEventListener('DOMContentLoaded', function() {
-        const initialPage = '${currentHtmlFile}' || 'index.html';
-        if (pages[initialPage]) {
-            loadPage(initialPage);
-        }
-    });
-    
-    ${combinedJS}
-</script>
+        
+        console.log('Project initialization complete!');
+    </script>
 </body>
 </html>`;
 
