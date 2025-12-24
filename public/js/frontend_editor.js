@@ -403,8 +403,10 @@ class SimpleFrontendEditor {
             const cssContent = this.css;
             const jsContent = this.js;
 
-            // Generate final HTML with proper escaping
-            const deploymentHTML = this.generateDeploymentHTML();
+            // Generate SIMPLE deployment HTML - just plain HTML/CSS/JS
+            const deploymentHTML = this.generateSimpleDeploymentHTML(htmlContent, cssContent, jsContent);
+
+            console.log('Saving project with deployment HTML:', deploymentHTML.length);
 
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
@@ -460,18 +462,13 @@ class SimpleFrontendEditor {
         }
     }
 
-    generateDeploymentHTML() {
+    generateSimpleDeploymentHTML(html, css, js) {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
         
         // Properly escape all content
-        const escapedCSS = this.css
-            .replace(/<\/style>/gi, '<\\/style>');
+        const escapedJS = this.escapeJavaScript(js);
+        const escapedCSS = css.replace(/<\/style>/gi, '<\\/style>');
         
-        const escapedJS = this.js
-            .replace(/<\/script>/gi, '<\\/script>')
-            .replace(/`/g, '\\`')
-            .replace(/\${/g, '\\${');
-
         return `<!DOCTYPE html>
 <html>
 <head>
@@ -483,33 +480,44 @@ class SimpleFrontendEditor {
     </style>
 </head>
 <body>
-    ${this.html}
+    ${html}
     <script>
-        (function() {
+        // Wait for DOM to be ready
+        function initProject() {
             try {
                 ${escapedJS}
             } catch (error) {
-                console.error('JavaScript execution error:', error);
+                console.error('JavaScript error:', error);
             }
-            
-            // Initialize when DOM is ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', function() {
-                    console.log('Project "${projectName}" loaded successfully');
-                });
-            } else {
-                console.log('Project "${projectName}" loaded successfully');
-            }
-        })();
+            console.log('Project "${projectName}" loaded successfully');
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initProject);
+        } else {
+            initProject();
+        }
     </script>
 </body>
 </html>`;
     }
 
+    escapeJavaScript(js) {
+        return js
+            .replace(/\\/g, '\\\\') // Escape backslashes first
+            .replace(/'/g, "\\'") // Escape single quotes
+            .replace(/"/g, '\\"') // Escape double quotes
+            .replace(/`/g, '\\`') // Escape backticks
+            .replace(/\n/g, '\\n') // Escape newlines
+            .replace(/\r/g, '\\r') // Escape carriage returns
+            .replace(/<\/script>/gi, '<\\/script>') // Escape script tags
+            .replace(/<\/script/gi, '<\\/script'); // Also escape incomplete tags
+    }
+
     showSuccessNotification(url) {
         const n = document.getElementById('success-notification');
         if (n) {
-            n.innerHTML = `<span>✓</span> Project saved! Share URL: <a href="${url}" target="_blank">${url}</a>`;
+            n.innerHTML = `<span>✓</span> Project saved! Share URL: <a href="${url}" target="_blank" style="color: white; text-decoration: underline;">${url}</a>`;
             n.style.display = 'flex';
             setTimeout(() => (n.style.display = 'none'), 5000);
         }
