@@ -4,24 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Frontend Playground</title>
+    <title>Simple Web Playground</title>
     <link rel="stylesheet" href="/css/frontend_editor.css">
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
 </head>
 
-<body>
+<body class="night-mode">
     <header class="frontend-header">
         <div class="header-left">
-            <h1>🚀 Advanced Frontend Playground</h1>
+            <h1>🌙 Simple Web Playground</h1>
         </div>
         <div class="header-right">
-            <input type="text" id="project-name" placeholder="Project Name">
+            <input type="text" id="project-name" placeholder="Project Name" class="night-input">
             <button id="save-project" class="btn btn-primary">
                 💾 Save & Deploy
             </button>
-            <button id="show-projects" class="btn btn-secondary">My Projects</button>
-            <button id="assets-manager" class="btn btn-secondary">📁 Assets</button>
-
+            <button id="theme-toggle" class="btn btn-secondary">🌙 Toggle Theme</button>
+            
             <!-- Dynamic Login/Logout Toggle Button -->
             <button id="auth-toggle" class="btn btn-login">
                 🔐 Login
@@ -30,17 +29,6 @@
     </header>
 
     <div class="container">
-        <!-- File Explorer Sidebar -->
-        <div class="file-explorer">
-            <div class="explorer-header">
-                <h3>Project Files</h3>
-                <button id="add-file" class="btn btn-small">+ New File</button>
-            </div>
-            <div class="file-tree" id="file-tree">
-                <!-- Files will be populated here -->
-            </div>
-        </div>
-
         <!-- Main Editor Area -->
         <div class="editor-panel">
             <div class="editor-tabs">
@@ -52,12 +40,6 @@
 
             <div class="editor-content">
                 <div class="tab-content active" id="html-tab">
-                    <div class="file-selector">
-                        <select id="html-file-selector" class="file-select">
-                            <option value="index.html">index.html</option>
-                        </select>
-                        <button class="btn btn-small" id="add-html-file">+</button>
-                    </div>
                     <textarea id="html-editor" placeholder="Write your HTML here...">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
@@ -72,12 +54,6 @@
                 </div>
 
                 <div class="tab-content" id="css-tab">
-                    <div class="file-selector">
-                        <select id="css-file-selector" class="file-select">
-                            <option value="style.css">style.css</option>
-                        </select>
-                        <button class="btn btn-small" onclick="frontendEditor.addFile('css')">+</button>
-                    </div>
                     <textarea id="css-editor" placeholder="Write your CSS here...">body {
     font-family: Arial, sans-serif;
     max-width: 800px;
@@ -113,12 +89,6 @@ button:hover {
                 </div>
 
                 <div class="tab-content" id="js-tab">
-                    <div class="file-selector">
-                        <select id="js-file-selector" class="file-select">
-                            <option value="script.js">script.js</option>
-                        </select>
-                        <button class="btn btn-small" onclick="frontendEditor.addFile('js')">+</button>
-                    </div>
                     <textarea id="js-editor" placeholder="Write your JavaScript here...">function showAlert() {
     alert('Hello from JavaScript! 🎉');
     
@@ -143,76 +113,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="preview-controls">
                         <button id="refresh-preview" class="btn btn-small">🔄 Refresh</button>
                         <button id="fullscreen-preview" class="btn btn-small">📺 Fullscreen</button>
-                        <span class="preview-size">
-                            <select id="preview-size-select">
-                                <option value="desktop">Desktop</option>
-                                <option value="tablet">Tablet</option>
-                                <option value="mobile">Mobile</option>
-                                <option value="responsive">Responsive</option>
-                            </select>
-                        </span>
                     </div>
                     <iframe id="preview-frame"></iframe>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Projects Modal -->
-    <div id="projects-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>My Projects</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="projects-list"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Assets Manager Modal -->
-    <div id="assets-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Project Assets</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="assets-upload-area">
-                    <input type="file" id="asset-upload" multiple accept="image/*,.svg,.ico,.woff,.woff2,.ttf,.eot">
-                    <label for="asset-upload" class="upload-label">
-                        📁 Click to upload assets (images, fonts, etc.)
-                    </label>
-                    <div class="assets-list" id="assets-list">
-                        <!-- Assets will be listed here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- File Creation Modal -->
-    <div id="file-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Create New File</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="new-file-name">File Name:</label>
-                    <input type="text" id="new-file-name" placeholder="e.g., about.html, styles.css, app.js">
-                </div>
-                <div class="form-group">
-                    <label for="new-file-type">File Type:</label>
-                    <select id="new-file-type">
-                        <option value="html">HTML</option>
-                        <option value="css">CSS</option>
-                        <option value="js">JavaScript</option>
-                    </select>
-                </div>
-                <button id="create-file" class="btn btn-primary">Create File</button>
             </div>
         </div>
     </div>
@@ -222,57 +125,53 @@ document.addEventListener('DOMContentLoaded', function() {
         <span>✓</span> Project saved successfully! Share URL copied to clipboard.
     </div>
 
-    <!-- Token Handler Script (keep your existing one) -->
     <script>
+        // Token handler (keep as is)
         console.log('=== DEBUG: Token handler script loaded ===');
 
-        // Function to show editor selection popup
         function showEditorSelectionPopup() {
             console.log('DEBUG: showEditorSelectionPopup called');
-
-            // Create a beautiful popup
             const popupOverlay = document.createElement('div');
             popupOverlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 10000;
-        backdrop-filter: blur(10px);
-    `;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                backdrop-filter: blur(10px);
+            `;
 
             const popupContent = document.createElement('div');
             popupContent.style.cssText = `
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 40px;
-        border-radius: 20px;
-        text-align: center;
-        color: white;
-        max-width: 500px;
-        width: 90%;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    `;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 40px;
+                border-radius: 20px;
+                text-align: center;
+                color: white;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            `;
 
             popupContent.innerHTML = `
-        <h2 style="margin-bottom: 10px; font-size: 2rem;">🎉 Welcome!</h2>
-        <p style="margin-bottom: 30px; opacity: 0.9;">Would you like to switch to Code Editor?</p>
-        
-        <div style="display: flex; gap: 15px; justify-content: center;">
-            <button id="stay-here" style="background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 12px 30px; border-radius: 25px; cursor: pointer; font-size: 1rem;">Stay Here</button>
-            <button id="go-to-editor" style="background: rgba(255, 255, 255, 0.9); color: #667eea; border: none; padding: 12px 30px; border-radius: 25px; cursor: pointer; font-size: 1rem; font-weight: bold;">Go to Code Editor</button>
-        </div>
-    `;
+                <h2 style="margin-bottom: 10px; font-size: 2rem;">🎉 Welcome!</h2>
+                <p style="margin-bottom: 30px; opacity: 0.9;">Would you like to switch to Code Editor?</p>
+                
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="stay-here" style="background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255, 255, 255, 0.3); padding: 12px 30px; border-radius: 25px; cursor: pointer; font-size: 1rem;">Stay Here</button>
+                    <button id="go-to-editor" style="background: rgba(255, 255, 255, 0.9); color: #667eea; border: none; padding: 12px 30px; border-radius: 25px; cursor: pointer; font-size: 1rem; font-weight: bold;">Go to Code Editor</button>
+                </div>
+            `;
 
             popupOverlay.appendChild(popupContent);
             document.body.appendChild(popupOverlay);
 
-            // Add event listeners
             document.getElementById('stay-here').addEventListener('click', function () {
                 console.log('DEBUG: User chose to stay on Frontend Playground');
                 document.body.removeChild(popupOverlay);
@@ -283,7 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/editor';
             });
 
-            // Close on overlay click
             popupOverlay.addEventListener('click', function (e) {
                 if (e.target === popupOverlay) {
                     console.log('DEBUG: Popup closed by overlay click');
@@ -312,7 +210,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!freshLogin) {
                     console.log('DEBUG: First time login, processing token...');
 
-                    // Store token in cookies
                     Cookies.set('token', token, {
                         expires: 7,
                         path: '/',
@@ -321,16 +218,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     console.log('DEBUG: Token stored in cookies');
 
-                    // Mark as processed
                     sessionStorage.setItem('fresh_login', 'true');
                     console.log('DEBUG: fresh_login set in sessionStorage');
 
-                    // Clean URL
                     const cleanURL = window.location.pathname;
                     window.history.replaceState({}, document.title, cleanURL);
                     console.log('DEBUG: URL cleaned to:', cleanURL);
 
-                    // Show popup after a short delay to ensure page is ready
                     setTimeout(() => {
                         console.log('DEBUG: Showing selection popup');
                         showEditorSelectionPopup();
@@ -344,8 +238,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Also check on page load (in case DOMContentLoaded already fired)
-        console.log('DEBUG: Script execution completed');
         if (document.readyState === 'loading') {
             console.log('DEBUG: Document still loading, waiting for DOMContentLoaded');
         } else {
@@ -354,7 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const token = urlParams.get('token');
             if (token && !sessionStorage.getItem('fresh_login')) {
                 console.log('DEBUG: Immediate token check - token found');
-                // Process immediately
                 Cookies.set('token', token, { expires: 7, path: '/' });
                 sessionStorage.setItem('fresh_login', 'true');
                 window.history.replaceState({}, document.title, window.location.pathname);
