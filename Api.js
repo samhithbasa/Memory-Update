@@ -1097,59 +1097,22 @@ app.get('/api/frontend/project/:id', async (req, res) => {
 });
 
 function generateDeployedHTML(projectData) {
-
+    // If project has deploymentHTML, use it
     if (projectData.deploymentHTML) {
         console.log('[DEBUG] Using pre-generated deployment HTML');
         return projectData.deploymentHTML;
     }
 
-    console.log('[DEBUG] Generating HTML from scratch');
+    console.log('[DEBUG] Generating simple deployment HTML');
 
-    // Safe access to files with fallbacks
-    const { files, assets, name } = projectData;
-    const htmlFiles = files?.html || {};
-    const cssFiles = files?.css || {};
-    const jsFiles = files?.js || {};
+    const { files, name } = projectData;
+    
+    // Get the content from files
+    const htmlContent = files?.html?.['index.html'] || '<h1>Project</h1>';
+    const cssContent = files?.css?.['style.css'] || '';
+    const jsContent = files?.js?.['script.js'] || '';
 
-    // Combine ALL CSS files
-    let combinedCSS = '';
-    Object.values(cssFiles).forEach(css => {
-        if (css && typeof css === 'string') {
-            combinedCSS += css + '\n';
-        }
-    });
-
-    // Combine ALL JS files safely - FIXED SYNTAX
-    let combinedJS = '';
-    Object.values(jsFiles).forEach(js => {
-        if (js && typeof js === 'string') {
-            // Proper sanitization
-            const safeJS = js
-                .replace(/<\/script>/gi, '<\\/script>')
-                .replace(/`/g, '\\`')
-                .replace(/\${/g, '\\${');
-            combinedJS += safeJS + '\n';
-        }
-    });
-
-    // Get all HTML page names
-    const pageNames = Object.keys(htmlFiles);
-
-    // Use index.html or first available HTML file
-    let mainHTML = '';
-    if (htmlFiles['index.html']) {
-        mainHTML = htmlFiles['index.html'];
-    } else if (pageNames.length > 0) {
-        mainHTML = htmlFiles[pageNames[0]];
-    } else {
-        mainHTML = '<h1>Project loaded successfully!</h1><p>No HTML files found in this project.</p>';
-    }
-
-    // Process HTML to remove external resource references
-    let processedHTML = mainHTML
-        .replace(/<link[^>]*href=["'][^"']*\.css["'][^>]*>/gi, '')
-        .replace(/<script[^>]*src=["'][^"']*\.js["'][^>]*><\/script>/gi, '');
-
+    // SIMPLE HTML without any extra navigation
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1157,121 +1120,23 @@ function generateDeployedHTML(projectData) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${name || 'My Project'}</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: white;
-            color: #333;
-        }
-        
-        /* Navigation styles */
-        .project-navigation {
-            background: #2c3e50;
-            padding: 15px;
-            margin: -20px -20px 20px -20px;
-        }
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .nav-btn {
-            background: #34495e;
-            color: white;
-            border: 1px solid #4a6278;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .nav-btn:hover {
-            background: #4a6278;
-        }
-        .nav-btn.active {
-            background: #3498db;
-            border-color: #2980b9;
-        }
-        
-        ${combinedCSS}
+        ${cssContent}
     </style>
 </head>
 <body>
-    <!-- Multi-page Navigation -->
-    ${pageNames.length > 1 ? `
-    <nav class="project-navigation">
-        <div class="nav-buttons">
-            ${pageNames.map(page =>
-        `<button class="nav-btn ${page === 'index.html' ? 'active' : ''}" 
-                        onclick="window.loadPage('${page}')">
-                    ${page.replace('.html', '')}
-                </button>`
-    ).join('')}
-        </div>
-    </nav>
-    ` : ''}
-    
-    <div id="content">
-        ${processedHTML}
-    </div>
-
+    ${htmlContent}
     <script>
-        // Project data
-        const projectPages = ${JSON.stringify(htmlFiles)};
-        const projectAssets = ${JSON.stringify(assets || [])};
-        const currentProject = '${name || 'Untitled Project'}';
-
-        // Multi-page navigation function
-        function loadPage(pageName) {
-            console.log('Loading page:', pageName);
-            
-            if (projectPages[pageName]) {
-                // Process the HTML for the new page
-                let pageHTML = projectPages[pageName]
-                    .replace(/<link[^>]*href=["'][^"']*\\.css["'][^>]*>/gi, '')
-                    .replace(/<script[^>]*src=["'][^"']*\\.js["'][^>]*><\\/script>/gi, '');
-                
-                document.getElementById('content').innerHTML = pageHTML;
-                
-                // Update active navigation button
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                event.target.classList.add('active');
-                
-                console.log('Page loaded successfully:', pageName);
-            } else {
-                console.error('Page not found:', pageName);
-                document.getElementById('content').innerHTML = 
-                    '<h1>Page Not Found</h1><p>The page "' + pageName + '" was not found in this project.</p>';
-            }
-        }
-
-        // Make loadPage available globally
-        window.loadPage = loadPage;
-        window.projectPages = projectPages;
-        window.projectAssets = projectAssets;
-
-        // Safe script execution with error handling
+        // Simple script execution
         (function() {
             try {
-                ${combinedJS}
+                ${jsContent}
             } catch (error) {
-                console.error('Script execution error in project:', error);
+                console.error('JavaScript error:', error);
             }
+            
+            // Log project info
+            console.log('Project "${name || 'Untitled'}" loaded');
         })();
-
-        // Project info for debugging
-        console.log('Project "' + currentProject + '" loaded successfully');
-        console.log('Pages available:', pageNames.length);
-        console.log('Assets:', projectAssets.length);
-        console.log('All pages:', pageNames);
-        
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded and parsed');
-        });
     </script>
 </body>
 </html>`;
@@ -1369,50 +1234,15 @@ app.get('/frontend/:projectId/:filename', (req, res) => {
     }
 });
 
-// Update the /frontend/:id route to properly handle navigation:
 app.get('/frontend/:id', (req, res) => {
     try {
         const projectId = req.params.id;
 
-        // Handle page requests within projects
-        if (projectId.endsWith('.html')) {
-            // This is a page request, extract project ID from referrer or query param
-            const refProjectId = req.query.projectId ||
-                req.headers.referer?.split('/').pop() ||
-                projectId.replace('.html', '');
-
-            const projectPath = path.join(FRONTEND_STORAGE_DIR, `${refProjectId}.json`);
-
-            if (fs.existsSync(projectPath)) {
-                const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-
-                // Find the requested page
-                const pageName = projectId;
-                if (projectData.files?.html?.[pageName]) {
-                    const htmlContent = projectData.files.html[pageName];
-
-                    // Generate proper HTML with navigation
-                    const fullHtml = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>${projectData.name} - ${pageName}</title>
-                        <base href="/frontend/${refProjectId}/">
-                    </head>
-                    <body>
-                        <nav style="background:#f5f5f5;padding:10px;">
-                            <a href="/frontend/${refProjectId}">← Back to Home</a>
-                        </nav>
-                        ${htmlContent}
-                    </body>
-                    </html>`;
-
-                    return res.send(fullHtml);
-                }
-            }
+        // Safety check
+        if (projectId.includes('..')) {
+            return res.status(400).send('Invalid project ID');
         }
 
-        // Original project loading logic continues...
         const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
 
         if (!fs.existsSync(projectPath)) {
@@ -1420,27 +1250,24 @@ app.get('/frontend/:id', (req, res) => {
                 <html>
                     <body>
                         <h1>Project Not Found</h1>
-                        <p>The requested project (${projectId}) does not exist.</p>
-                        <a href="/frontend-editor">Create a new project</a>
+                        <p>The requested project does not exist.</p>
                     </body>
                 </html>
             `);
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-
-        // Add base URL to the generated HTML for proper asset resolution
-        const originalHtml = generateDeployedHTML(projectData);
-        const htmlWithBase = originalHtml.replace(
-            '<head>',
-            `<head>\n    <base href="/frontend/${projectId}/">`
-        );
-
-        res.send(htmlWithBase);
+        
+        // Generate or use deployment HTML
+        const html = generateDeployedHTML(projectData);
+        
+        // Send the HTML directly
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
 
     } catch (error) {
         console.error('Error serving frontend project:', error);
-        res.status(500).send('Error loading project: ' + error.message);
+        res.status(500).send('Error loading project');
     }
 });
 
