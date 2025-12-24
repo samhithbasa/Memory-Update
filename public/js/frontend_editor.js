@@ -246,10 +246,13 @@ class SimpleFrontendEditor {
     }
 
     // ========== UNIVERSAL DEPLOYMENT HTML GENERATION ==========
+    // Works with ANY JavaScript code the user writes
     generateDeploymentHTML(html, css, js) {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
 
-        // SIMPLIFIED VERSION - Just make everything work
+        // Escape JavaScript to prevent syntax errors
+        const escapedJS = this.escapeJavaScript(js);
+
         return `<!DOCTYPE html>
 <html>
 <head>
@@ -263,84 +266,143 @@ class SimpleFrontendEditor {
 <body>
     ${html}
     <script>
-        // === UNIVERSAL JAVASCRIPT HANDLER ===
-        // This makes ANY frontend code work
+        // === UNIVERSAL JAVASCRIPT EXECUTION SYSTEM ===
+        // This works with ANY JavaScript code format
         
-        // 1. Execute the user's code
-        try {
-            // First, run the user's JavaScript
-            (function() {
-                ${js}
-            })();
-        } catch(error) {
-            console.error('User code error:', error);
-        }
+        // 1. EXECUTE USER'S CODE IN GLOBAL SCOPE
+        (function() {
+            try {
+                // Use Function constructor to execute code in global scope
+                // This is the KEY - makes everything globally accessible
+                const executeCode = new Function(\`
+                    try {
+                        // User's original code
+                        ${escapedJS}
+                        
+                        // Auto-detect functions and make them global
+                        // Check for function declarations
+                        const functionNames = [];
+                        const funcRegex = /function\\\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\\\s*\\\\(/g;
+                        let match;
+                        while ((match = funcRegex.exec(\`${escapedJS}\`)) !== null) {
+                            functionNames.push(match[1]);
+                        }
+                        
+                        // Check for arrow functions
+                        const arrowRegex = /(?:const|let|var)\\\\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\\\\s*=\\\\s*(?:async\\\\s*)?\\\\([^)]*\\\\)\\\\s*=>/g;
+                        while ((match = arrowRegex.exec(\`${escapedJS}\`)) !== null) {
+                            functionNames.push(match[1]);
+                        }
+                        
+                        // Attach all detected functions to window
+                        functionNames.forEach(fn => {
+                            try {
+                                if (typeof eval(fn) === 'function') {
+                                    window[fn] = eval(fn);
+                                }
+                            } catch(e) {
+                                // Function might not exist in current scope
+                            }
+                        });
+                    } catch(error) {
+                        console.error('User code error:', error);
+                    }
+                \`);
+                
+                executeCode();
+            } catch(error) {
+                console.error('Execution wrapper error:', error);
+            }
+        })();
         
-        // 2. Universal event handler system
+        // 2. UNIVERSAL ONCLICK HANDLER SYSTEM
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded - setting up universal handlers');
+            console.log('Setting up universal event handlers...');
             
-            // Find all elements with onclick and attach event listeners
+            // Handle ALL onclick attributes
             const elementsWithOnClick = document.querySelectorAll('[onclick]');
             elementsWithOnClick.forEach(element => {
                 const originalHandler = element.getAttribute('onclick');
-                if (originalHandler) {
-                    // Remove the onclick attribute to prevent conflicts
+                
+                // Create a global function from the onclick handler
+                const handlerFunctionName = 'onclick_' + Math.random().toString(36).substr(2, 9);
+                
+                try {
+                    // Define the handler as a global function
+                    window[handlerFunctionName] = new Function(\`
+                        try {
+                            ${originalHandler}
+                        } catch(error) {
+                            console.error('onclick execution error:', error);
+                        }
+                    \`);
+                    
+                    // Replace the onclick with our global function
+                    element.onclick = window[handlerFunctionName];
+                    
+                    // Remove the original onclick attribute to prevent conflicts
                     element.removeAttribute('onclick');
                     
-                    // Add event listener
-                    element.addEventListener('click', function(e) {
-                        try {
-                            // Execute the handler code
-                            eval(originalHandler);
-                        } catch(error) {
-                            console.error('onclick execution error:', error, 'Handler:', originalHandler);
-                        }
-                    });
+                } catch(error) {
+                    console.error('Failed to create onclick handler:', error);
                 }
             });
             
-            // Global click handler as backup
+            // 3. GLOBAL CLICK HANDLER AS BACKUP
             document.addEventListener('click', function(e) {
-                const onclick = e.target.getAttribute('onclick');
+                const element = e.target;
+                const onclick = element.getAttribute('onclick');
+                
                 if (onclick) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    
                     try {
-                        eval(onclick);
+                        // Execute onclick in global context
+                        const func = new Function(onclick);
+                        func.call(element);
                     } catch(error) {
-                        console.error('Global onclick error:', error);
+                        console.error('Global onclick handler error:', error);
                     }
                 }
-            });
+            }, true); // Use capture phase
             
-            // Make common functions globally available
-            const commonFunctions = [
-                'append', 'clearDisplay', 'deleteLast', 'calculate',
-                'addTask', 'deleteTask', 'save', 'render',
-                'saveTasks', 'showAlert', 'init', 'load'
-            ];
+            console.log('Universal handlers ready for: "${projectName}"');
             
-            commonFunctions.forEach(funcName => {
-                try {
-                    if (typeof eval(funcName) === 'function') {
-                        window[funcName] = eval(funcName);
+            // 4. AUTO-DETECT AND MAKE FUNCTIONS GLOBAL (SECOND PASS)
+            setTimeout(function() {
+                // Common function names to check for
+                const commonFunctions = [
+                    'append', 'clearDisplay', 'deleteLast', 'calculate',
+                    'addTask', 'deleteTask', 'save', 'render',
+                    'saveTasks', 'showAlert', 'init', 'load',
+                    'testClick', 'handleClick', 'myFunction'
+                ];
+                
+                commonFunctions.forEach(funcName => {
+                    try {
+                        if (typeof eval(funcName) === 'function') {
+                            window[funcName] = eval(funcName);
+                            console.log('Auto-detected and made global:', funcName);
+                        }
+                    } catch(e) {
+                        // Function doesn't exist
                     }
-                } catch(e) {
-                    // Ignore - function doesn't exist
+                });
+                
+                // Also look for any function in global scope
+                for (let key in window) {
+                    if (typeof window[key] === 'function' && 
+                        !key.startsWith('onclick_') && 
+                        !['alert', 'console', 'eval', 'setTimeout', 'setInterval'].includes(key)) {
+                        console.log('Global function available:', key);
+                    }
                 }
-            });
-            
-            console.log('Universal handlers setup complete for project: "${projectName}"');
+            }, 500);
         });
         
-        // 3. Fallback: If DOMContentLoaded already fired, run setup immediately
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOMContentLoaded fired');
-            });
-        } else {
-            console.log('DOM already loaded, running setup');
-            // Run setup immediately
+        // 5. IF DOM ALREADY LOADED, TRIGGER SETUP
+        if (document.readyState !== 'loading') {
             const event = new Event('DOMContentLoaded');
             document.dispatchEvent(event);
         }
@@ -349,42 +411,17 @@ class SimpleFrontendEditor {
 </html>`;
     }
 
-    // ========== HELPER METHODS ==========
-    extractAllFunctionNames(js) {
-        const functionNames = new Set();
-
-        // 1. Regular function declarations: function myFunc() {...}
-        const funcRegex = /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g;
-        let match;
-        while ((match = funcRegex.exec(js)) !== null) {
-            functionNames.add(match[1]);
-        }
-
-        // 2. Arrow functions: const myFunc = () => {...}
-        const arrowRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
-        while ((match = arrowRegex.exec(js)) !== null) {
-            functionNames.add(match[1]);
-        }
-
-        // 3. Function expressions: const myFunc = function() {...}
-        const exprRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function/g;
-        while ((match = exprRegex.exec(js)) !== null) {
-            functionNames.add(match[1]);
-        }
-
-        // 4. Method definitions: myMethod() {...}
-        const methodRegex = /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\([^)]*\)\s*\{/g;
-        while ((match = methodRegex.exec(js)) !== null) {
-            // Skip keywords and common words
-            const skipWords = ['if', 'for', 'while', 'switch', 'catch', 'function'];
-            if (!skipWords.includes(match[1])) {
-                functionNames.add(match[1]);
-            }
-        }
-
-        return Array.from(functionNames);
+    // ========== ESCAPE JAVASCRIPT FOR SAFE EXECUTION ==========
+    escapeJavaScript(js) {
+        // Escape backticks, template literals, and script tags
+        return js
+            .replace(/\\/g, '\\\\') // Escape backslashes first
+            .replace(/`/g, '\\`')   // Escape backticks
+            .replace(/\${/g, '\\${') // Escape template literals
+            .replace(/\n/g, '\\n')  // Escape newlines
+            .replace(/\r/g, '\\r')  // Escape carriage returns
+            .replace(/<\/script>/gi, '<\\/script>'); // Escape script tags
     }
-
     toggleFullscreenPreview() {
         const previewFrame = document.getElementById('preview-frame');
         if (!previewFrame) return;
