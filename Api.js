@@ -1764,20 +1764,115 @@ wss.on('connection', (ws) => {
         return code;
     }
 
+    function analyzeJavaCode(code) {
+        console.log('🔍 [DEBUG] Analyzing Java code structure');
+
+        // Check for multiple classes
+        const classMatches = code.match(/class\s+(\w+)/g);
+        if (classMatches && classMatches.length > 1) {
+            console.log('⚠️ [DEBUG] Multiple classes found:', classMatches);
+            return { hasMultipleClasses: true, classes: classMatches };
+        }
+
+        // Check for main method
+        const hasMainMethod = /public\s+static\s+void\s+main\s*\(/.test(code);
+
+        // Check for other methods
+        const methodMatches = code.match(/(public|private|protected|static|\s) +[\w\<\>\[\]]+\s+(\w+)\s*\([^\)]*\)\s*\{/g);
+
+        return {
+            hasClass: !!code.match(/class\s+\w+/),
+            className: code.match(/class\s+(\w+)/)?.[1] || 'Main',
+            hasMainMethod: hasMainMethod,
+            methods: methodMatches || [],
+            isSimpleCode: !code.match(/class\s+\w+/) && !hasMainMethod
+        };
+    }
+
     function fixJavaCode(code) {
-        // If no class definition found, wrap in Main class
-        if (!code.match(/class\s+\w+/)) {
-            // Check if it's just a main method
-            if (code.includes('public static void main')) {
-                code = `public class Main {\n    ${code}\n}`;
-            } else {
-                code = `public class Main {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
+        const analysis = analyzeJavaCode(code);
+        console.log('📊 [DEBUG] Java code analysis:', analysis);
+
+        // If code already has a proper structure, leave it alone
+        if (analysis.hasClass && analysis.hasMainMethod) {
+            console.log('✅ [DEBUG] Code already has class with main method');
+
+            // Ensure class is public
+            if (!code.includes('public class')) {
+                code = code.replace(/class\s+(\w+)/, 'public class $1');
             }
+            return code;
         }
-        // Ensure class is public if it contains main method
-        else if (code.includes('public static void main') && !code.includes('public class')) {
-            code = code.replace(/class\s+(\w+)/, 'public class $1');
+
+        // If code has class but no main method
+        if (analysis.hasClass && !analysis.hasMainMethod) {
+            console.log('⚠️ [DEBUG] Class found but no main method');
+
+            // Check if user wrote functions that can be called
+            if (analysis.methods.length > 0) {
+                console.log('🔄 [DEBUG] Adding main method to call user methods');
+
+                // Extract class name
+                const className = analysis.className;
+
+                // Create main method that calls user methods
+                const mainMethod = `
+    public static void main(String[] args) {
+        ${className} obj = new ${className}();
+        System.out.println("Program starting...");
+        
+        // Try to call user methods
+        try {
+            // Call methods that look like they can be executed
+            java.lang.reflect.Method[] methods = obj.getClass().getDeclaredMethods();
+            for (java.lang.reflect.Method method : methods) {
+                if (method.getParameterCount() == 0 && 
+                    method.getReturnType() == void.class &&
+                    !method.getName().equals("main")) {
+                    System.out.println("Calling method: " + method.getName());
+                    method.setAccessible(true);
+                    method.invoke(obj);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            e.printStackTrace();
         }
+    }`;
+
+                // Insert main method before the last closing brace
+                if (code.includes('}')) {
+                    const lastBraceIndex = code.lastIndexOf('}');
+                    code = code.substring(0, lastBraceIndex) + mainMethod + '\n}';
+                }
+
+                // Ensure class is public
+                if (!code.includes('public class')) {
+                    code = code.replace(/class\s+(\w+)/, 'public class $1');
+                }
+            } else {
+                // Just add a simple main method
+                code = code.replace(/class\s+(\w+)/, 'public class $1');
+                if (code.includes('}')) {
+                    const lastBraceIndex = code.lastIndexOf('}');
+                    code = code.substring(0, lastBraceIndex) +
+                        '\n    public static void main(String[] args) {\n        System.out.println("Program executed successfully!");\n    }\n}';
+                }
+            }
+            return code;
+        }
+
+        // No class found - wrap everything
+        console.log('🔄 [DEBUG] Wrapping code in Main class');
+
+        if (analysis.hasMainMethod) {
+            // Just add class wrapper
+            code = `public class Main {\n${code}\n}`;
+        } else {
+            // Wrap in class with main method
+            code = `public class Main {\n    public static void main(String[] args) {\n${code}\n    }\n}`;
+        }
+
         return code;
     }
 
