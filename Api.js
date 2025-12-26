@@ -989,7 +989,7 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
         res.json({
             success: true,
             projectId,
-            shareUrl: `https://${req.headers.host}/frontend/${projectId}`,
+            shareUrl: `http://${req.headers.host}/frontend/${projectId}`, // ← Use HTTP
             message: 'Project saved successfully'
         });
     } catch (error) {
@@ -1111,7 +1111,7 @@ function generateDeployedHTML(projectData) {
     console.log('[DEBUG] Generating universal deployment HTML');
 
     const { files, name } = projectData;
-    
+
     // Get the content from files
     const htmlContent = files?.html?.['index.html'] || '<h1>Project</h1>';
     const cssContent = files?.css?.['style.css'] || '';
@@ -1119,7 +1119,7 @@ function generateDeployedHTML(projectData) {
 
     // Extract function names from JavaScript
     const functionNames = extractFunctionNames(jsContent);
-    
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1174,20 +1174,20 @@ function generateDeployedHTML(projectData) {
 
 function extractFunctionNames(js) {
     const functionNames = new Set();
-    
+
     // Match function declarations
     const funcRegex = /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g;
     let match;
     while ((match = funcRegex.exec(js)) !== null) {
         functionNames.add(match[1]);
     }
-    
+
     // Match arrow functions
     const arrowRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
     while ((match = arrowRegex.exec(js)) !== null) {
         functionNames.add(match[1]);
     }
-    
+
     return Array.from(functionNames);
 }
 
@@ -1292,13 +1292,13 @@ app.get('/frontend/:id', (req, res) => {
             // Extract the actual project ID from the filename
             const actualProjectId = projectId.split('.')[0]; // Remove extension
             const filePath = path.join(FRONTEND_STORAGE_DIR, `${actualProjectId}.json`);
-            
+
             if (!fs.existsSync(filePath)) {
                 return res.status(404).send('Project not found');
             }
 
             const projectData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            
+
             // Check which file type is requested
             if (projectId.endsWith('.js')) {
                 res.setHeader('Content-Type', 'application/javascript');
@@ -1327,13 +1327,13 @@ app.get('/frontend/:id', (req, res) => {
         }
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-        
+
         // Use deploymentHTML if it exists
         if (projectData.deploymentHTML) {
             res.setHeader('Content-Type', 'text/html');
             return res.send(projectData.deploymentHTML);
         }
-        
+
         // Fallback to simple generation
         const simpleHTML = generateDeployedHTML(projectData);
         res.setHeader('Content-Type', 'text/html');
