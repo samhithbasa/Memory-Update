@@ -69,7 +69,7 @@ app.use('/css', express.static(path.join(__dirname, "public", "css")));
 const oauth2Client = new google.auth.OAuth2(
     "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
     "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",
-    "https://memory-update-production.up.railway.app/auth/google/callback"
+    "http://localhost:3000/auth/google/callback" // ← NEW URL
 );
 
 // Generate Google OAuth URL
@@ -270,7 +270,7 @@ app.get('/debug-oauth', (req, res) => {
     res.json({
         oauthConfigured: true,
         authUrl: authUrl,
-        redirectUri: "https://memory-update-production.up.railway.app/auth/google/callback",
+        redirectUri: "http://localhost:3000/auth/google/callback", // ← NEW URL
         clientId: "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
         message: "Visit /auth/google to test OAuth"
     });
@@ -708,7 +708,7 @@ app.post('/forgot-password', passwordResetLimiter, async (req, res) => {
             { upsert: true }
         );
 
-        const resetLink = `https://memory-update-production.up.railway.app/reset-password?token=${token}`;
+        const resetLink = `http://localhost:3000/reset-password?token=${token}`;
 
         const mailOptions = {
             from: `Code Editor <${process.env.EMAIL_USER}>`,
@@ -1395,7 +1395,7 @@ app.get('/api/frontend/projects', async (req, res) => {
                         name: projectData.name,
                         createdAt: projectData.createdAt,
                         updatedAt: projectData.updatedAt,
-                        shareUrl: `https://memory-update-production.up.railway.app/frontend/${projectData.id}`,
+                        shareUrl: `http://localhost:3000/frontend/${projectData.id}`,
                         fileCount: Object.keys(projectData.files || {}).reduce((acc, key) =>
                             acc + Object.keys(projectData.files[key] || {}).length, 0),
                         assetCount: (projectData.assets || []).length,

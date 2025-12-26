@@ -1,5 +1,0 @@
-[build]
-builder = "nixpacks"
-
-[build.args]
-APT_PACKAGES = "python3 python3-pip g++ gcc default-jdk"
