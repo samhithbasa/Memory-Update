@@ -49,8 +49,6 @@ if (!fs.existsSync(FRONTEND_STORAGE_DIR)) {
 
 const frontendProjects = new Map();
 
-
-
 const options = {
     stats: true,
     tempDir: tempDir
@@ -69,7 +67,7 @@ app.use('/css', express.static(path.join(__dirname, "public", "css")));
 const oauth2Client = new google.auth.OAuth2(
     "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
     "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",
-    "http://localhost:3000/auth/google/callback" // ← NEW URL
+    "http://localhost:3000/auth/google/callback"
 );
 
 // Generate Google OAuth URL
@@ -197,7 +195,7 @@ app.get('/pricing', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
 });
 
-// Google OAuth routes - MOVED BEFORE CATCH-ALL
+// Google OAuth routes
 app.get('/auth/google', (req, res) => {
     const authUrl = getGoogleAuthURL();
     res.redirect(authUrl);
@@ -270,7 +268,7 @@ app.get('/debug-oauth', (req, res) => {
     res.json({
         oauthConfigured: true,
         authUrl: authUrl,
-        redirectUri: "http://localhost:3000/auth/google/callback", // ← NEW URL
+        redirectUri: "http://localhost:3000/auth/google/callback",
         clientId: "1079090693613-lovubh9n9s7bcm1jka6ssh1grm62usk5.apps.googleusercontent.com",
         message: "Visit /auth/google to test OAuth"
     });
@@ -323,7 +321,6 @@ app.get('/check-compilers', (req, res) => {
     });
 });
 
-
 function authenticateAdmin(req, res, next) {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -336,7 +333,7 @@ function authenticateAdmin(req, res, next) {
         if (!decoded.isAdmin) {
             return res.status(403).json({
                 error: 'Admin access required',
-                details: decoded // For debugging
+                details: decoded
             });
         }
 
@@ -450,7 +447,6 @@ app.post('/api/contact', async (req, res) => {
     }
 });
 
-// Add this route to your Api.js
 app.get('/api/admin/tickets', authenticateAdmin, async (req, res) => {
     try {
         const tickets = await contactSubmissions.find().sort({ createdAt: -1 }).toArray();
@@ -806,19 +802,130 @@ if (!fs.existsSync(SHARE_STORAGE_DIR)) {
 }
 
 function autoInjectFlush(code, lang) {
+    console.log('🔄 [DEBUG] Processing code for language:', lang);
+
     if (lang === 'C' || lang === 'Cpp') {
-        // Add fflush after every printf that doesn't have \n at the end
-        return code.replace(
+        let processedCode = code;
+
+        // 1. Check if stdio.h is included
+        if (!processedCode.includes('#include <stdio.h>') && !processedCode.includes('#include<stdio.h>')) {
+            console.log('📝 [DEBUG] Adding stdio.h include');
+            processedCode = '#include <stdio.h>\n' + processedCode;
+        }
+
+        // 2. Add fflush after printf statements
+        processedCode = processedCode.replace(
             /printf\s*\([^;]*\)\s*;(?!\s*fflush)/g,
             (match) => {
-                // Check if printf ends with \n
                 if (match.includes('\\n")')) {
                     return match;
                 }
                 return match + '\nfflush(stdout);';
             }
         );
+
+        // 3. Check for scanf/gets/getchar without preceding printf
+        const hasScanf = /scanf\s*\(/.test(processedCode);
+        const hasGets = /gets\s*\(/.test(processedCode);
+        const hasGetChar = /getchar\s*\(/.test(processedCode);
+
+        if ((hasScanf || hasGets || hasGetChar)) {
+            console.log('🔍 [DEBUG] Found input functions');
+
+            // Check if there's any printf before the first input
+            const firstInputIndex = Math.min(
+                processedCode.indexOf('scanf'),
+                processedCode.indexOf('gets'),
+                processedCode.indexOf('getchar')
+            ).filter(i => i !== -1);
+
+            if (firstInputIndex !== -1) {
+                const codeBeforeInput = processedCode.substring(0, firstInputIndex);
+                const hasPrintBeforeInput = /printf|puts|putchar/.test(codeBeforeInput);
+
+                if (!hasPrintBeforeInput) {
+                    console.log('⚠️ [DEBUG] No print before input - adding prompt');
+
+                    // Add a simple prompt before the first input
+                    if (hasScanf) {
+                        processedCode = processedCode.replace(
+                            /(scanf\s*\([^;]*\);)/,
+                            'printf("Enter input: ");\nfflush(stdout);\n$1'
+                        );
+                    } else if (hasGets) {
+                        processedCode = processedCode.replace(
+                            /(gets\s*\([^;]*\);)/,
+                            'printf("Enter input: ");\nfflush(stdout);\n$1'
+                        );
+                    }
+                }
+            }
+        }
+
+        return processedCode;
     }
+
+    if (lang === 'Python') {
+        // For Python, add prompt before input() if no print statement
+        const hasInput = /input\s*\(/.test(code);
+
+        if (hasInput) {
+            console.log('🐍 [DEBUG] Found Python input()');
+
+            // Check if there's print before input in the same scope
+            const lines = code.split('\n');
+            let modifiedCode = code;
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('input(')) {
+                    // Check previous non-empty line for print
+                    let hasPrintBefore = false;
+                    for (let j = i - 1; j >= 0; j--) {
+                        if (lines[j].trim() !== '') {
+                            if (lines[j].includes('print(')) {
+                                hasPrintBefore = true;
+                                break;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (!hasPrintBefore) {
+                        console.log('⚠️ [DEBUG] No print before Python input - adding prompt');
+                        lines[i] = 'print("Enter input: ", end="")' + '\n' + lines[i];
+                    }
+                }
+            }
+
+            modifiedCode = lines.join('\n');
+            return modifiedCode;
+        }
+    }
+
+    if (lang === 'Java') {
+        // For Java, add prompt before Scanner/System.in.read
+        const hasScanner = /Scanner\s*\(/.test(code);
+        const hasSystemInRead = /System\.in\.read/.test(code);
+
+        if (hasScanner || hasSystemInRead) {
+            console.log('☕ [DEBUG] Found Java input');
+
+            // Check if there's System.out.print before input
+            const hasPrintBefore = /System\.out\.(print|println)/.test(code);
+
+            if (!hasPrintBefore) {
+                console.log('⚠️ [DEBUG] No print before Java input - adding prompt');
+
+                if (hasScanner) {
+                    code = code.replace(
+                        /(Scanner\s+\w+\s*=\s*new\s*Scanner\s*\(System\.in\))/,
+                        'System.out.print("Enter input: ");\n$1'
+                    );
+                }
+            }
+        }
+    }
+
     return code;
 }
 
@@ -910,7 +1017,7 @@ app.get("/saved-codes", authenticateToken, (req, res) => {
                 }
             })
             .filter(code => code !== null)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Newest first
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         res.json(userCodes);
     });
@@ -958,8 +1065,6 @@ app.delete('/delete-code/:id', authenticateToken, (req, res) => {
     }
 });
 
-
-
 app.post('/api/frontend/save', authenticateToken, async (req, res) => {
     try {
         const { name, files, assets, structure, deploymentHTML } = req.body;
@@ -975,7 +1080,6 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
             userEmail: req.user.email,
             createdAt: new Date(),
             updatedAt: new Date(),
-            // Ensure deploymentHTML is saved
             deploymentHTML: deploymentHTML || generateDeployedHTML({
                 name: name || 'Untitled Project',
                 files: files || {}
@@ -989,7 +1093,7 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
         res.json({
             success: true,
             projectId,
-            shareUrl: `http://${req.headers.host}/frontend/${projectId}`, // ← Use HTTP
+            shareUrl: `http://${req.headers.host}/frontend/${projectId}`,
             message: 'Project saved successfully'
         });
     } catch (error) {
@@ -1090,8 +1194,6 @@ app.get('/api/frontend/project/:id', async (req, res) => {
 
         const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
 
-        // ✅ FIX: Allow public access to projects (remove authentication requirement)
-        // Projects should be accessible without login for sharing functionality
         console.log(`[DEBUG] Loading project ${projectId} - public access allowed`);
 
         res.json(projectData);
@@ -1290,7 +1392,7 @@ app.get('/frontend/:id', (req, res) => {
         // Handle .js, .css, .html file requests
         if (projectId.endsWith('.js') || projectId.endsWith('.css') || projectId.endsWith('.html')) {
             // Extract the actual project ID from the filename
-            const actualProjectId = projectId.split('.')[0]; // Remove extension
+            const actualProjectId = projectId.split('.')[0];
             const filePath = path.join(FRONTEND_STORAGE_DIR, `${actualProjectId}.json`);
 
             if (!fs.existsSync(filePath)) {
@@ -1355,8 +1457,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-
-
 // Update the projects route to be more permissive
 app.get('/api/frontend/projects', async (req, res) => {
     try {
@@ -1369,7 +1469,6 @@ app.get('/api/frontend/projects', async (req, res) => {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 userId = decoded.userId;
             } catch (err) {
-                // Token is invalid, but we'll still return public projects
                 console.log('Invalid token, returning public projects only');
             }
         }
@@ -1598,15 +1697,15 @@ app.post('/admin-login', async (req, res) => {
         // This is where you add the payload structure
         const tokenPayload = {
             username: "codeEditor",
-            isAdmin: true,  // Critical admin flag
-            iat: Math.floor(Date.now() / 1000),  // Current timestamp
-            exp: Math.floor(Date.now() / 1000) + (8 * 60 * 60)  // Expires in 8 hours
+            isAdmin: true,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + (8 * 60 * 60)
         };
 
         const token = jwt.sign(
-            tokenPayload,  // Using the structured payload
+            tokenPayload,
             process.env.JWT_SECRET,
-            { algorithm: 'HS256' }  // Explicit algorithm
+            { algorithm: 'HS256' }
         );
 
         return res.json({ token });
@@ -1654,7 +1753,7 @@ async function sendDeletionEmail(ticket) {
                 <p>Hello ${ticket.name},</p>
                 <p>We're writing to inform you that your support ticket has been processed and closed.</p>
                 
-                <div style="background-color:极致的 #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <h3>Ticket Details</h3>
                     <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
                     <p><strong>Subject:</strong> ${ticket.subject}</p>
@@ -1674,10 +1773,6 @@ async function sendDeletionEmail(ticket) {
         console.error('Error sending deletion email:', error);
     }
 }
-
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
-});
 
 // WebSocket connection handling
 wss.on('connection', (ws) => {
@@ -1744,7 +1839,7 @@ wss.on('connection', (ws) => {
         }
     });
 
-    function autoInjectFlush(code, lang) {
+    function wsAutoInjectFlush(code, lang) {
         if (lang === 'C' || lang === 'Cpp') {
             let processedCode = code;
 
@@ -1883,8 +1978,22 @@ wss.on('connection', (ws) => {
             first50Chars: code.substring(0, 50)
         });
 
-        const processedCode = autoInjectFlush(code, lang);
+        const processedCode = wsAutoInjectFlush(code, lang);
         console.log('🔄 [DEBUG] Code processed for language:', lang);
+
+        if (processedCode !== code) {
+            console.log('📝 [DEBUG] Code was modified. Changes:');
+            const originalLines = code.split('\n');
+            const processedLines = processedCode.split('\n');
+
+            for (let i = 0; i < Math.max(originalLines.length, processedLines.length); i++) {
+                if (originalLines[i] !== processedLines[i]) {
+                    console.log(`Line ${i + 1}:`);
+                    console.log(`  Original: ${originalLines[i] || ''}`);
+                    console.log(`  Modified: ${processedLines[i] || ''}`);
+                }
+            }
+        }
 
         cleanupTempFiles();
         tempFiles = [];
@@ -2052,7 +2161,6 @@ wss.on('connection', (ws) => {
             runProcess(command, args);
         }
 
-
         function runProcess(cmd, args) {
             console.log('🎯 [DEBUG] runProcess called with:', { cmd, args });
 
@@ -2151,5 +2259,8 @@ wss.on('connection', (ws) => {
     }
 });
 
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
 
 startServer();
