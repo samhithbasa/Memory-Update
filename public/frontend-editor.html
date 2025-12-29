@@ -180,7 +180,21 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <script>
-        console.log('=== DEBUG: Token handler script loaded ===');
+        console.log('=== DEBUG: Checking authentication state ===');
+        console.log('Cookies:', document.cookie);
+        const token = document.cookie.split('; ').find(row => row.startsWith('token='));
+        console.log('Token found:', !!token);
+        if (token) {
+            console.log('Token value:', token.split('=')[1].substring(0, 20) + '...');
+
+            // Test the token
+            fetch('/verify-token', {
+                headers: { 'Authorization': 'Bearer ' + token.split('=')[1] }
+            })
+                .then(response => response.json())
+                .then(data => console.log('Token verification result:', data))
+                .catch(err => console.error('Token verification failed:', err));
+        }
 
         // Function to show editor selection popup
         function showEditorSelectionPopup() {

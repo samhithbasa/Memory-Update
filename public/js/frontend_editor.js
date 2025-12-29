@@ -1,4 +1,27 @@
+// Replace the entire frontend_editor.js file with this corrected version
+
 console.log('Enhanced Frontend Editor JavaScript loaded');
+
+// Helper function for cookies
+const Cookies = {
+    get: function(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    },
+    set: function(name, value, days) {
+        let expires = '';
+        if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = '; expires=' + date.toUTCString();
+        }
+        document.cookie = name + '=' + (value || '') + expires + '; path=/';
+    },
+    remove: function(name) {
+        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
+    }
+};
 
 class SimpleFrontendEditor {
     constructor() {
@@ -184,11 +207,8 @@ class SimpleFrontendEditor {
         if (tabName === 'preview') this.updatePreview();
     }
 
-    // ========== UNIVERSAL HTML GENERATION ==========
     generateHTML() {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
-
-        // Auto-wrap JavaScript for preview too
         const processedJS = this.autoWrapJavaScript(this.js);
 
         return `<!DOCTYPE html>
@@ -204,19 +224,14 @@ class SimpleFrontendEditor {
 <body>
     ${this.html}
     <script>
-        // UNIVERSAL PREVIEW - AUTO-WRAPPED
         (function() {
             try {
-                // User's original code
                 ${this.js}
-                
-                // Auto-wrapped version
                 ${processedJS}
             } catch(error) {
                 console.error('JavaScript error:', error);
             }
             
-            // Universal event handler for preview
             document.addEventListener('click', function(e) {
                 if (e.target.hasAttribute('onclick')) {
                     const onclick = e.target.getAttribute('onclick');
@@ -251,11 +266,8 @@ class SimpleFrontendEditor {
         }
     }
 
-    // ========== UNIVERSAL DEPLOYMENT HTML GENERATION ==========
     generateDeploymentHTML(html, css, js) {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
-
-        // AUTO-WRAP JavaScript to make all functions globally available
         const processedJS = this.autoWrapJavaScript(js);
 
         return `<!DOCTYPE html>
@@ -271,39 +283,31 @@ class SimpleFrontendEditor {
 <body>
     ${html}
     <script>
-        // === AUTO-WRAPPED JAVASCRIPT ===
-        // All functions are automatically made global
-        
-        // 1. Execute the user's original code first
+        // Original code
         try {
             (function() {
-                // User's original code (preserved for debugging)
                 ${js}
             })();
         } catch(error) {
             console.error('User code error:', error);
         }
         
-        // 2. AUTO-WRAPPED VERSION - Makes everything work automatically
+        // Auto-wrapped version
         (function() {
-            // Processed version with auto-wrapped functions
             ${processedJS}
         })();
         
-        // 3. Universal event handler for onclick events
+        // Universal event handler
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Deployed project loaded: "${projectName}"');
             
-            // Auto-bind all onclick handlers
             document.addEventListener('click', function(e) {
                 if (e.target.hasAttribute('onclick')) {
                     const handler = e.target.getAttribute('onclick');
                     try {
-                        // Try to execute as is
                         eval(handler);
                     } catch(error) {
                         console.warn('onclick handler error:', error);
-                        // Try to find and call the function
                         const funcName = handler.replace(/\(.*\)/, '').trim();
                         if (typeof window[funcName] === 'function') {
                             window[funcName]();
@@ -312,7 +316,6 @@ class SimpleFrontendEditor {
                 }
             });
             
-            // Auto-call init() or main() if they exist
             setTimeout(() => {
                 if (typeof window.init === 'function') window.init();
                 if (typeof window.main === 'function') window.main();
@@ -320,7 +323,6 @@ class SimpleFrontendEditor {
             }, 100);
         });
         
-        // 4. Make sure DOMContentLoaded fires even if already loaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('DOMContentLoaded fired');
@@ -334,17 +336,14 @@ class SimpleFrontendEditor {
 </html>`;
     }
 
-    // ========== AUTO-WRAP JAVASCRIPT HELPER ==========
     autoWrapJavaScript(js) {
         if (!js.trim()) return js;
 
         console.log('Auto-wrapping JavaScript for global access...');
 
-        // Keep a copy of original code for reference
         let processed = js;
 
-        // 1. Convert regular function declarations to window assignments
-        // Matches: function myFunc() { ... }
+        // Convert function declarations to window assignments
         processed = processed.replace(
             /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{/g,
             (match, funcName, params) => {
@@ -353,9 +352,7 @@ class SimpleFrontendEditor {
             }
         );
 
-        // 2. Convert const/let/var function assignments
-        // Matches: const myFunc = function() { ... }
-        // Matches: const myFunc = () => { ... }
+        // Convert variable function assignments
         processed = processed.replace(
             /(const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>)\s*\{/g,
             (match, declaration, funcName, funcParams, arrowParams) => {
@@ -365,51 +362,38 @@ class SimpleFrontendEditor {
             }
         );
 
-        // 3. Also assign to window at the end of the function
-        // This ensures functions declared inside other scopes still become global
+        // Add window assignments for all functions
         const functionNames = this.extractAllFunctionNames(js);
-
-        // Add window assignments for all detected functions
         if (functionNames.length > 0) {
             console.log(`Found functions to make global: ${functionNames.join(', ')}`);
-
-            // Add at the beginning of the script
             const windowAssignments = functionNames.map(funcName =>
                 `if (typeof ${funcName} === 'function' && !window.${funcName}) window.${funcName} = ${funcName};`
             ).join('\n');
-
             processed = windowAssignments + '\n' + processed;
         }
 
         return processed;
     }
 
-    // ========== IMPROVED FUNCTION EXTRACTION ==========
     extractAllFunctionNames(js) {
         const functionNames = new Set();
 
-        // 1. Regular function declarations
+        // Regular function declarations
         const funcRegex = /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g;
         let match;
         while ((match = funcRegex.exec(js)) !== null) {
             functionNames.add(match[1]);
         }
 
-        // 2. Arrow functions assigned to variables
+        // Arrow functions assigned to variables
         const arrowRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
         while ((match = arrowRegex.exec(js)) !== null) {
             functionNames.add(match[1]);
         }
 
-        // 3. Function expressions
+        // Function expressions
         const exprRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function/g;
         while ((match = exprRegex.exec(js)) !== null) {
-            functionNames.add(match[1]);
-        }
-
-        // 4. Method assignments
-        const methodRegex = /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function/g;
-        while ((match = methodRegex.exec(js)) !== null) {
             functionNames.add(match[1]);
         }
 
@@ -436,7 +420,6 @@ class SimpleFrontendEditor {
         }
     }
 
-    // ========== SAVE PROJECT METHOD ==========
     async saveProject() {
         const token = Cookies.get('token');
         if (!token) {
@@ -447,7 +430,6 @@ class SimpleFrontendEditor {
         const saveBtn = document.getElementById('save-project');
         const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
 
-        // Add saving state
         if (saveBtn) {
             saveBtn.innerHTML = '💾 Saving...';
             saveBtn.classList.add('saving');
@@ -461,7 +443,6 @@ class SimpleFrontendEditor {
             const cssContent = this.css;
             const jsContent = this.js;
 
-            // Generate universal deployment HTML
             const deploymentHTML = this.generateDeploymentHTML(htmlContent, cssContent, jsContent);
 
             const response = await fetch('/api/frontend/save', {
@@ -527,7 +508,6 @@ class SimpleFrontendEditor {
         }
     }
 
-    // ========== AUTH METHODS ==========
     async checkAuthStatus() {
         const token = Cookies.get('token');
         const authToggle = document.getElementById('auth-toggle');
@@ -548,8 +528,16 @@ class SimpleFrontendEditor {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (response.ok) this.setAuthState(true);
-            else {
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid) {
+                    this.setAuthState(true);
+                    console.log('User authenticated:', data.user);
+                } else {
+                    Cookies.remove('token');
+                    this.setAuthState(false);
+                }
+            } else {
                 Cookies.remove('token');
                 this.setAuthState(false);
             }
@@ -646,7 +634,6 @@ class SimpleFrontendEditor {
         }, 3000);
     }
 
-    // ========== PROJECT MANAGEMENT ==========
     async showProjects() {
         const token = Cookies.get('token');
         if (!token) {
@@ -879,25 +866,64 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
 
     bindAdvancedEvents() {
         // File Manager
-        document.getElementById('file-manager-btn')?.addEventListener('click', () => this.showFileManager());
-        document.querySelector('.close-modal')?.addEventListener('click', () => this.hideFileManager());
+        const fileManagerBtn = document.getElementById('file-manager-btn');
+        if (fileManagerBtn) {
+            fileManagerBtn.addEventListener('click', () => this.showFileManager());
+        }
+        
+        const closeModal = document.querySelector('.close-modal');
+        if (closeModal) {
+            closeModal.addEventListener('click', () => this.hideFileManager());
+        }
         
         // File operations
-        document.getElementById('new-file')?.addEventListener('click', () => this.createNewFile());
-        document.getElementById('new-folder')?.addEventListener('click', () => this.createNewFolder());
-        document.getElementById('save-file')?.addEventListener('click', () => this.saveCurrentFile());
-        document.getElementById('delete-file')?.addEventListener('click', () => this.deleteCurrentFile());
-        document.getElementById('rename-file')?.addEventListener('click', () => this.renameCurrentFile());
+        const newFileBtn = document.getElementById('new-file');
+        if (newFileBtn) {
+            newFileBtn.addEventListener('click', () => this.createNewFile());
+        }
+        
+        const newFolderBtn = document.getElementById('new-folder');
+        if (newFolderBtn) {
+            newFolderBtn.addEventListener('click', () => this.createNewFolder());
+        }
+        
+        const saveFileBtn = document.getElementById('save-file');
+        if (saveFileBtn) {
+            saveFileBtn.addEventListener('click', () => this.saveCurrentFile());
+        }
+        
+        const deleteFileBtn = document.getElementById('delete-file');
+        if (deleteFileBtn) {
+            deleteFileBtn.addEventListener('click', () => this.deleteCurrentFile());
+        }
+        
+        const renameFileBtn = document.getElementById('rename-file');
+        if (renameFileBtn) {
+            renameFileBtn.addEventListener('click', () => this.renameCurrentFile());
+        }
         
         // File selector
-        document.getElementById('file-selector')?.addEventListener('change', (e) => this.loadFile(e.target.value));
+        const fileSelector = document.getElementById('file-selector');
+        if (fileSelector) {
+            fileSelector.addEventListener('change', (e) => this.loadFile(e.target.value));
+        }
         
         // Pages preview
-        document.getElementById('pages-preview-toggle')?.addEventListener('click', () => this.togglePagesPreview());
-        document.getElementById('close-pages')?.addEventListener('click', () => this.hidePagesPreview());
+        const pagesPreviewToggle = document.getElementById('pages-preview-toggle');
+        if (pagesPreviewToggle) {
+            pagesPreviewToggle.addEventListener('click', () => this.togglePagesPreview());
+        }
+        
+        const closePagesBtn = document.getElementById('close-pages');
+        if (closePagesBtn) {
+            closePagesBtn.addEventListener('click', () => this.hidePagesPreview());
+        }
         
         // Upload assets
-        document.getElementById('upload-assets')?.addEventListener('click', () => this.uploadAssets());
+        const uploadAssetsBtn = document.getElementById('upload-assets');
+        if (uploadAssetsBtn) {
+            uploadAssetsBtn.addEventListener('click', () => this.uploadAssets());
+        }
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
@@ -912,15 +938,15 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
             this.projectStructure = {
                 files: {
                     html: {
-                        'index.html': this.html,
+                        'index.html': this.html || '<!DOCTYPE html>\n<html>\n<head>\n    <title>My Project</title>\n</head>\n<body>\n    <h1>Hello World</h1>\n    <p>Start building your amazing project...</p>\n</body>\n</html>',
                         'about.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>About</title>\n</head>\n<body>\n    <h1>About Page</h1>\n    <p>This is the about page.</p>\n</body>\n</html>'
                     },
                     css: {
-                        'style.css': this.css,
+                        'style.css': this.css || '',
                         'about.css': 'body { padding: 20px; font-family: Arial; }'
                     },
                     js: {
-                        'script.js': this.js,
+                        'script.js': this.js || '',
                         'about.js': 'console.log("About page loaded");'
                     },
                     assets: {}
@@ -1055,13 +1081,19 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
     }
 
     showFileManager() {
-        document.getElementById('file-manager-modal').style.display = 'block';
-        this.renderFileTree();
-        this.updateFileSelector();
+        const modal = document.getElementById('file-manager-modal');
+        if (modal) {
+            modal.style.display = 'block';
+            this.renderFileTree();
+            this.updateFileSelector();
+        }
     }
 
     hideFileManager() {
-        document.getElementById('file-manager-modal').style.display = 'none';
+        const modal = document.getElementById('file-manager-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 
     selectFile(filePath) {
@@ -1184,7 +1216,8 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
         
         this.saveProjectStructure();
         this.currentFile = null;
-        document.getElementById('file-editor').value = '';
+        const editor = document.getElementById('file-editor');
+        if (editor) editor.value = '';
         this.renderFileTree();
         this.updateFileSelector();
         this.updatePreview();
@@ -1248,7 +1281,7 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
                         name: file.name,
                         type: file.type,
                         size: file.size,
-                        content: event.target.result.split(',')[1], // Base64
+                        content: event.target.result.split(',')[1],
                         lastModified: new Date().toISOString()
                     };
                     
@@ -1321,13 +1354,11 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
         localStorage.setItem('projectStructure', JSON.stringify(this.projectStructure));
     }
 
-    // Enhanced preview generation for multi-page projects
     generateUniversalHTML() {
         // Collect all files
         const htmlFiles = { ...this.projectStructure.files.html };
         const cssFiles = { ...this.projectStructure.files.css };
         const jsFiles = { ...this.projectStructure.files.js };
-        const assets = { ...this.projectStructure.files.assets };
         
         // Add files from folders
         Object.values(this.projectStructure.folders).forEach(folder => {
@@ -1390,9 +1421,8 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
 </html>`;
     }
 
-    // Generate deployment package
     async generateDeploymentPackage() {
-        const package = {
+        const packageData = {
             project: this.projectStructure,
             config: {
                 mainHtml: this.projectStructure.mainHtml,
@@ -1412,11 +1442,10 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
             };
         });
         
-        package.assets = assets;
-        return package;
+        packageData.assets = assets;
+        return packageData;
     }
 
-    // Save and deploy with all files
     async saveProject() {
         const token = Cookies.get('token');
         if (!token) {
@@ -1425,7 +1454,7 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
         }
 
         const saveBtn = document.getElementById('save-project');
-        const originalText = saveBtn.innerHTML;
+        const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
         
         if (saveBtn) {
             saveBtn.innerHTML = '💾 Saving...';
@@ -1484,7 +1513,6 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
         }
     }
 
-    // Update preview to handle multiple pages
     updatePreview() {
         try {
             // For now, preview the main HTML file
@@ -1506,14 +1534,19 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
         }
     }
 
-    // Toggle pages preview panel
     togglePagesPreview() {
-        document.getElementById('pages-preview').classList.toggle('open');
-        this.renderPagesPreview();
+        const pagesPreview = document.getElementById('pages-preview');
+        if (pagesPreview) {
+            pagesPreview.classList.toggle('open');
+            this.renderPagesPreview();
+        }
     }
 
     hidePagesPreview() {
-        document.getElementById('pages-preview').classList.remove('open');
+        const pagesPreview = document.getElementById('pages-preview');
+        if (pagesPreview) {
+            pagesPreview.classList.remove('open');
+        }
     }
 
     renderPagesPreview() {
@@ -1540,7 +1573,6 @@ class AdvancedFrontendEditor extends SimpleFrontendEditor {
     }
 
     generatePagePreviewHTML(html) {
-        // Simple preview without full CSS/JS
         return `<!DOCTYPE html>
 <html>
 <head>
