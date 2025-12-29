@@ -25,6 +25,8 @@
             <button id="auth-toggle" class="btn btn-login">
                 🔐 Login
             </button>
+
+            <button id="file-manager-btn" class="btn btn-secondary">📁 File Manager</button>
         </div>
     </header>
 
@@ -117,6 +119,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     <iframe id="preview-frame"></iframe>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="file-manager-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📁 File Manager</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- File Tree -->
+                <div class="file-tree">
+                    <div class="tree-header">
+                        <h3>Project Structure</h3>
+                        <div class="tree-actions">
+                            <button id="new-folder" class="btn-small">📁 New Folder</button>
+                            <button id="new-file" class="btn-small">📄 New File</button>
+                            <button id="upload-assets" class="btn-small">📤 Upload</button>
+                        </div>
+                    </div>
+                    <div id="file-tree-container">
+                        <!-- Dynamic file tree will be generated here -->
+                    </div>
+                </div>
+
+                <!-- File Editor -->
+                <div class="file-editor-panel">
+                    <div class="editor-header">
+                        <select id="file-selector" class="night-input">
+                            <option value="">Select a file to edit</option>
+                        </select>
+                        <div class="editor-actions">
+                            <button id="save-file" class="btn-small">💾 Save</button>
+                            <button id="delete-file" class="btn-small">🗑️ Delete</button>
+                            <button id="rename-file" class="btn-small">✏️ Rename</button>
+                        </div>
+                    </div>
+                    <div class="file-editor-container">
+                        <textarea id="file-editor" placeholder="Edit file content..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pages-preview" class="pages-preview">
+        <div class="pages-header">
+            <h3>📄 Page Previews</h3>
+            <button id="close-pages">&times;</button>
+        </div>
+        <div class="pages-list">
+            <!-- Pages will be dynamically added here -->
         </div>
     </div>
 

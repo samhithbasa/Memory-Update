@@ -1102,6 +1102,199 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
     }
 });
 
+// Add this route to Api.js
+app.post('/api/frontend/save-multi', authenticateToken, async (req, res) => {
+    try {
+        const { name, package, deploymentHTML } = req.body;
+        const projectId = uuidv4();
+
+        // Create project directory
+        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
+        if (!fs.existsSync(projectDir)) {
+            fs.mkdirSync(projectDir, { recursive: true });
+        }
+
+        // Save project structure
+        const projectData = {
+            id: projectId,
+            name: name || 'Untitled Project',
+            package: package,
+            userId: req.user.userId,
+            userEmail: req.user.email,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deploymentHTML: deploymentHTML || generateMultiPageHTML(package)
+        };
+
+        // Save metadata
+        const metaPath = path.join(projectDir, 'project.json');
+        fs.writeFileSync(metaPath, JSON.stringify(projectData, null, 2));
+
+        // Save individual files
+        if (package.project?.files) {
+            Object.entries(package.project.files.html || {}).forEach(([filename, content]) => {
+                const filePath = path.join(projectDir, filename);
+                fs.writeFileSync(filePath, content);
+            });
+
+            Object.entries(package.project.files.css || {}).forEach(([filename, content]) => {
+                const filePath = path.join(projectDir, filename);
+                fs.writeFileSync(filePath, content);
+            });
+
+            Object.entries(package.project.files.js || {}).forEach(([filename, content]) => {
+                const filePath = path.join(projectDir, filename);
+                fs.writeFileSync(filePath, content);
+            });
+        }
+
+        // Save assets
+        if (package.assets) {
+            const assetsDir = path.join(projectDir, 'assets');
+            if (!fs.existsSync(assetsDir)) {
+                fs.mkdirSync(assetsDir, { recursive: true });
+            }
+
+            Object.entries(package.assets).forEach(([name, asset]) => {
+                if (asset.content) {
+                    const buffer = Buffer.from(asset.content, 'base64');
+                    const assetPath = path.join(assetsDir, name);
+                    fs.writeFileSync(assetPath, buffer);
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            projectId,
+            shareUrl: `http://${req.headers.host}/frontend-multi/${projectId}`,
+            message: 'Multi-page project saved successfully'
+        });
+
+    } catch (error) {
+        console.error('Error saving multi-page project:', error);
+        res.status(500).json({ error: 'Failed to save project' });
+    }
+});
+
+app.get('/frontend-multi/:id', (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
+        const metaPath = path.join(projectDir, 'project.json');
+
+        if (!fs.existsSync(metaPath)) {
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        
+        // Serve deployment HTML
+        res.setHeader('Content-Type', 'text/html');
+        res.send(projectData.deploymentHTML);
+
+    } catch (error) {
+        console.error('Error serving multi-page project:', error);
+        res.status(500).send('Error loading project');
+    }
+});
+
+app.get('/frontend-multi/:id', (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
+        const metaPath = path.join(projectDir, 'project.json');
+
+        if (!fs.existsSync(metaPath)) {
+            return res.status(404).send('Project not found');
+        }
+
+        const projectData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        
+        // Serve deployment HTML
+        res.setHeader('Content-Type', 'text/html');
+        res.send(projectData.deploymentHTML);
+
+    } catch (error) {
+        console.error('Error serving multi-page project:', error);
+        res.status(500).send('Error loading project');
+    }
+});
+
+// Serve project files from directory
+app.get('/frontend-multi/:id/*', (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const filePath = req.params[0];
+        const fullPath = path.join(FRONTEND_STORAGE_DIR, projectId, filePath);
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).send('File not found');
+        }
+
+        // Set appropriate content type
+        const ext = path.extname(fullPath).toLowerCase();
+        const contentType = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.json': 'application/json',
+            '.ttf': 'font/ttf',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2'
+        }[ext] || 'text/plain';
+
+        res.setHeader('Content-Type', contentType);
+        res.sendFile(fullPath);
+
+    } catch (error) {
+        console.error('Error serving project file:', error);
+        res.status(500).send('Error loading file');
+    }
+});
+
+function generateMultiPageHTML(package) {
+    const { project } = package;
+    const htmlFiles = Object.keys(project.files.html || {});
+    
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${project.name || 'Multi-page Project'}</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-nav { position: fixed; top: 0; width: 100%; background: #333; color: white; padding: 10px; }
+        .page-nav a { color: white; margin: 0 10px; text-decoration: none; }
+        .page-nav a:hover { text-decoration: underline; }
+        iframe { width: 100%; height: calc(100vh - 50px); border: none; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    <div class="page-nav">
+        ${htmlFiles.map(file => `<a href="#" onclick="loadPage('${file}')">${file}</a>`).join('')}
+    </div>
+    <iframe id="content-frame" src="${project.mainHtml || 'index.html'}"></iframe>
+    
+    <script>
+        function loadPage(page) {
+            document.getElementById('content-frame').src = page;
+            return false;
+        }
+        
+        // Load all JavaScript files
+        ${Object.values(project.files.js || {}).join('\n')}
+    </script>
+</body>
+</html>`;
+}
+
 // Route to migrate legacy projects to have user IDs
 app.post('/api/frontend/migrate-projects', authenticateToken, async (req, res) => {
     try {
