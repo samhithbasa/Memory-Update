@@ -1,0 +1,22 @@
+{
+  "id": "1d6fb08e-2dd0-4f48-8813-6cc33e7bfa22",
+  "name": "Untitled Project",
+  "files": {
+    "html": {
+      "index.html": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Color Changer</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n    <h1>Background Color Changer</h1>\n    <button onclick=\"changeBg()\">Change Background</button>\n    <br><br>\n    <a href=\"colors.html\">Go to Text Color Page</a>\n\n    <script src=\"script.js\"></script>\n</body>\n</html>\n",
+      "colors.html": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Color Changer App</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n\n    <!-- Background Color Section -->\n    <div id=\"bgSection\">\n        <h1>Background Color Changer</h1>\n        <button onclick=\"changeBg()\">Change Background</button>\n        <br><br>\n        <button onclick=\"showText()\">Go to Text Color</button>\n    </div>\n\n    <!-- Text Color Section -->\n    <div id=\"textSection\" style=\"display:none;\">\n        <h1 id=\"text\">Change My Color</h1>\n        <button onclick=\"changeText()\">Change Text Color</button>\n        <br><br>\n        <button onclick=\"showBg()\">Back</button>\n    </div>\n\n    <script src=\"script.js\"></script>\n</body>\n</html>\n"
+    },
+    "css": {
+      "style.css": ""
+    },
+    "js": {
+      "script.js": ""
+    }
+  },
+  "assets": [],
+  "userId": "680483f32d4f412b45cdb1c8",
+  "userEmail": "samhith_basa@srmap.edu.in",
+  "createdAt": "2026-01-22T13:59:16.905Z",
+  "updatedAt": "2026-01-22T13:59:16.905Z",
+  "deploymentHTML": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>My Project</title>\n    <style>\n        \n\n    </style>\n</head>\n<body>\n    <!DOCTYPE html>\n<html>\n<head>\n    <title>Color Changer</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n    <h1>Background Color Changer</h1>\n    <button onclick=\"changeBg()\">Change Background</button>\n    <br><br>\n    <a href=\"colors.html\">Go to Text Color Page</a>\n\n    <script src=\"script.js\"></script>\n</body>\n</html>\n\n    \n    \n    <script>\n        // AUTO-WRAPPED JAVASCRIPT\n        (function() {\n            // User's original code\n            try {\n                \n\n            } catch(error) {\n                console.error('User code error:', error);\n            }\n            \n            // Processed version with auto-wrapped functions\n            \n\n        })();\n        \n        // Asset management\n        window.projectAssets = [];\n        \n        // Universal event handler\n        document.addEventListener('DOMContentLoaded', function() {\n            console.log('Project \"My Project\" loaded successfully');\n            \n            // Handle all onclick events\n            document.addEventListener('click', function(e) {\n                if (e.target.hasAttribute('onclick')) {\n                    try {\n                        eval(e.target.getAttribute('onclick'));\n                    } catch(error) {\n                        console.error('onclick error:', error);\n                    }\n                }\n            });\n            \n            // Auto-initialize\n            if (typeof window.init === 'function') window.init();\n            if (typeof window.main === 'function') window.main();\n        });\n    </script>\n</body>\n</html>"
+}

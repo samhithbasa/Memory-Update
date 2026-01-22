@@ -1067,37 +1067,22 @@ app.delete('/delete-code/:id', authenticateToken, (req, res) => {
 
 app.post('/api/frontend/save', authenticateToken, async (req, res) => {
     try {
-        const { name, files, assets, deploymentHTML } = req.body;
+        const { name, files, assets, structure, deploymentHTML } = req.body;
         const projectId = uuidv4();
-
-        // Validate files structure
-        const validatedFiles = {
-            html: files?.html || {},
-            css: files?.css || {},
-            js: files?.js || {}
-        };
-
-        // Validate assets (limit size)
-        const validatedAssets = (assets || []).slice(0, 20).map(asset => ({
-            name: asset.name,
-            type: asset.type,
-            size: asset.size,
-            data: asset.data // base64 encoded
-        }));
 
         const projectData = {
             id: projectId,
             name: name || 'Untitled Project',
-            files: validatedFiles,
-            assets: validatedAssets,
+            files: files || {},
+            assets: assets || [],
+            structure: structure || {},
             userId: req.user.userId,
             userEmail: req.user.email,
             createdAt: new Date(),
             updatedAt: new Date(),
-            deploymentHTML: deploymentHTML || this.generateDeploymentHTML({
+            deploymentHTML: deploymentHTML || generateDeployedHTML({
                 name: name || 'Untitled Project',
-                files: validatedFiles,
-                assets: validatedAssets
+                files: files || {}
             })
         };
 
@@ -1109,48 +1094,11 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
             success: true,
             projectId,
             shareUrl: `http://${req.headers.host}/frontend/${projectId}`,
-            message: 'Project saved successfully',
-            stats: {
-                htmlFiles: Object.keys(validatedFiles.html || {}).length,
-                cssFiles: Object.keys(validatedFiles.css || {}).length,
-                jsFiles: Object.keys(validatedFiles.js || {}).length,
-                assets: validatedAssets.length
-            }
+            message: 'Project saved successfully'
         });
     } catch (error) {
         console.error('Error saving frontend project:', error);
         res.status(500).json({ error: 'Failed to save project' });
-    }
-});
-
-// Serve project assets
-app.get('/api/frontend/assets/:projectId/:assetName', (req, res) => {
-    try {
-        const { projectId, assetName } = req.params;
-        const projectPath = path.join(FRONTEND_STORAGE_DIR, `${projectId}.json`);
-
-        if (!fs.existsSync(projectPath)) {
-            return res.status(404).json({ error: 'Project not found' });
-        }
-
-        const projectData = JSON.parse(fs.readFileSync(projectPath, 'utf8'));
-        const asset = projectData.assets?.find(a => a.name === assetName);
-
-        if (!asset) {
-            return res.status(404).json({ error: 'Asset not found' });
-        }
-
-        // Set appropriate content type
-        res.setHeader('Content-Type', asset.type);
-        
-        // Send base64 data
-        const base64Data = asset.data.split(',')[1]; // Remove data URL prefix
-        const buffer = Buffer.from(base64Data, 'base64');
-        res.send(buffer);
-
-    } catch (error) {
-        console.error('Error serving asset:', error);
-        res.status(500).json({ error: 'Failed to serve asset' });
     }
 });
 
