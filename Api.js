@@ -1123,7 +1123,6 @@ app.post('/api/frontend/save', authenticateToken, async (req, res) => {
     }
 });
 
-<<<<<<< HEAD
 // Serve project assets
 app.get('/api/frontend/assets/:projectId/:assetName', (req, res) => {
     try {
@@ -1155,201 +1154,6 @@ app.get('/api/frontend/assets/:projectId/:assetName', (req, res) => {
     }
 });
 
-=======
-// Add this route to Api.js
-app.post('/api/frontend/save-multi', authenticateToken, async (req, res) => {
-    try {
-        const { name, package, deploymentHTML } = req.body;
-        const projectId = uuidv4();
-
-        // Create project directory
-        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
-        if (!fs.existsSync(projectDir)) {
-            fs.mkdirSync(projectDir, { recursive: true });
-        }
-
-        // Save project structure
-        const projectData = {
-            id: projectId,
-            name: name || 'Untitled Project',
-            package: package,
-            userId: req.user.userId,
-            userEmail: req.user.email,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deploymentHTML: deploymentHTML || generateMultiPageHTML(package)
-        };
-
-        // Save metadata
-        const metaPath = path.join(projectDir, 'project.json');
-        fs.writeFileSync(metaPath, JSON.stringify(projectData, null, 2));
-
-        // Save individual files
-        if (package.project?.files) {
-            Object.entries(package.project.files.html || {}).forEach(([filename, content]) => {
-                const filePath = path.join(projectDir, filename);
-                fs.writeFileSync(filePath, content);
-            });
-
-            Object.entries(package.project.files.css || {}).forEach(([filename, content]) => {
-                const filePath = path.join(projectDir, filename);
-                fs.writeFileSync(filePath, content);
-            });
-
-            Object.entries(package.project.files.js || {}).forEach(([filename, content]) => {
-                const filePath = path.join(projectDir, filename);
-                fs.writeFileSync(filePath, content);
-            });
-        }
-
-        // Save assets
-        if (package.assets) {
-            const assetsDir = path.join(projectDir, 'assets');
-            if (!fs.existsSync(assetsDir)) {
-                fs.mkdirSync(assetsDir, { recursive: true });
-            }
-
-            Object.entries(package.assets).forEach(([name, asset]) => {
-                if (asset.content) {
-                    const buffer = Buffer.from(asset.content, 'base64');
-                    const assetPath = path.join(assetsDir, name);
-                    fs.writeFileSync(assetPath, buffer);
-                }
-            });
-        }
-
-        res.json({
-            success: true,
-            projectId,
-            shareUrl: `http://${req.headers.host}/frontend-multi/${projectId}`,
-            message: 'Multi-page project saved successfully'
-        });
-
-    } catch (error) {
-        console.error('Error saving multi-page project:', error);
-        res.status(500).json({ error: 'Failed to save project' });
-    }
-});
-
-app.get('/frontend-multi/:id', (req, res) => {
-    try {
-        const projectId = req.params.id;
-        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
-        const metaPath = path.join(projectDir, 'project.json');
-
-        if (!fs.existsSync(metaPath)) {
-            return res.status(404).send('Project not found');
-        }
-
-        const projectData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        
-        // Serve deployment HTML
-        res.setHeader('Content-Type', 'text/html');
-        res.send(projectData.deploymentHTML);
-
-    } catch (error) {
-        console.error('Error serving multi-page project:', error);
-        res.status(500).send('Error loading project');
-    }
-});
-
-app.get('/frontend-multi/:id', (req, res) => {
-    try {
-        const projectId = req.params.id;
-        const projectDir = path.join(FRONTEND_STORAGE_DIR, projectId);
-        const metaPath = path.join(projectDir, 'project.json');
-
-        if (!fs.existsSync(metaPath)) {
-            return res.status(404).send('Project not found');
-        }
-
-        const projectData = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        
-        // Serve deployment HTML
-        res.setHeader('Content-Type', 'text/html');
-        res.send(projectData.deploymentHTML);
-
-    } catch (error) {
-        console.error('Error serving multi-page project:', error);
-        res.status(500).send('Error loading project');
-    }
-});
-
-// Serve project files from directory
-app.get('/frontend-multi/:id/*', (req, res) => {
-    try {
-        const projectId = req.params.id;
-        const filePath = req.params[0];
-        const fullPath = path.join(FRONTEND_STORAGE_DIR, projectId, filePath);
-
-        if (!fs.existsSync(fullPath)) {
-            return res.status(404).send('File not found');
-        }
-
-        // Set appropriate content type
-        const ext = path.extname(fullPath).toLowerCase();
-        const contentType = {
-            '.html': 'text/html',
-            '.css': 'text/css',
-            '.js': 'application/javascript',
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.svg': 'image/svg+xml',
-            '.json': 'application/json',
-            '.ttf': 'font/ttf',
-            '.woff': 'font/woff',
-            '.woff2': 'font/woff2'
-        }[ext] || 'text/plain';
-
-        res.setHeader('Content-Type', contentType);
-        res.sendFile(fullPath);
-
-    } catch (error) {
-        console.error('Error serving project file:', error);
-        res.status(500).send('Error loading file');
-    }
-});
-
-function generateMultiPageHTML(package) {
-    const { project } = package;
-    const htmlFiles = Object.keys(project.files.html || {});
-    
-    return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${project.name || 'Multi-page Project'}</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .page-nav { position: fixed; top: 0; width: 100%; background: #333; color: white; padding: 10px; }
-        .page-nav a { color: white; margin: 0 10px; text-decoration: none; }
-        .page-nav a:hover { text-decoration: underline; }
-        iframe { width: 100%; height: calc(100vh - 50px); border: none; margin-top: 50px; }
-    </style>
-</head>
-<body>
-    <div class="page-nav">
-        ${htmlFiles.map(file => `<a href="#" onclick="loadPage('${file}')">${file}</a>`).join('')}
-    </div>
-    <iframe id="content-frame" src="${project.mainHtml || 'index.html'}"></iframe>
-    
-    <script>
-        function loadPage(page) {
-            document.getElementById('content-frame').src = page;
-            return false;
-        }
-        
-        // Load all JavaScript files
-        ${Object.values(project.files.js || {}).join('\n')}
-    </script>
-</body>
-</html>`;
-}
-
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
 // Route to migrate legacy projects to have user IDs
 app.post('/api/frontend/migrate-projects', authenticateToken, async (req, res) => {
     try {
@@ -1452,37 +1256,23 @@ app.get('/api/frontend/project/:id', async (req, res) => {
 });
 
 function generateDeployedHTML(projectData) {
-    const { files, assets, name } = projectData;
-
-    // Combine all CSS files
-    let combinedCSS = '';
-    if (files.css) {
-        Object.values(files.css).forEach(cssContent => {
-            combinedCSS += cssContent + '\n';
-        });
+    // If project has deploymentHTML, use it
+    if (projectData.deploymentHTML) {
+        console.log('[DEBUG] Using pre-generated deployment HTML');
+        return projectData.deploymentHTML;
     }
 
-    // Combine all JS files
-    let combinedJS = '';
-    if (files.js) {
-        Object.values(files.js).forEach(jsContent => {
-            combinedJS += jsContent + '\n';
-        });
-    }
+    console.log('[DEBUG] Generating universal deployment HTML');
 
-    // Get main HTML file
-    const mainHTML = files.html?.['index.html'] || 
-                    files.html?.[Object.keys(files.html || {})[0]] || 
-                    '<h1>Project</h1>';
+    const { files, name } = projectData;
 
-    // Generate asset references
-    const assetRefs = assets?.map(asset => {
-        const assetUrl = `/api/frontend/assets/${projectData.id}/${encodeURIComponent(asset.name)}`;
-        if (asset.type.startsWith('image/')) {
-            return `<img src="${assetUrl}" alt="${asset.name}" style="display:none;" id="asset-${asset.name}">`;
-        }
-        return '';
-    }).join('\n') || '';
+    // Get the content from files
+    const htmlContent = files?.html?.['index.html'] || '<h1>Project</h1>';
+    const cssContent = files?.css?.['style.css'] || '';
+    const jsContent = files?.js?.['script.js'] || '';
+
+    // Extract function names from JavaScript
+    const functionNames = extractFunctionNames(jsContent);
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -1491,80 +1281,49 @@ function generateDeployedHTML(projectData) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${name || 'My Project'}</title>
     <style>
-        ${combinedCSS}
+        ${cssContent}
     </style>
 </head>
 <body>
-    ${mainHTML}
-    ${assetRefs}
-    
+    ${htmlContent}
     <script>
-        // Project data
-        window.projectData = {
-            name: "${name || 'Untitled'}",
-            files: ${JSON.stringify(files)},
-            assets: ${JSON.stringify(assets || [])}
-        };
+        // Execute user's JavaScript
+        (function() {
+            try {
+                ${jsContent}
+            } catch(error) {
+                console.error('JavaScript error:', error);
+            }
+        })();
         
-        // User JavaScript
-        try {
-            ${combinedJS}
-        } catch(error) {
-            console.error('JavaScript error:', error);
-        }
-        
-        // Auto-wrap functions for global access
-        ${autoWrapJavaScript(combinedJS)}
+        // Make functions global
+        ${functionNames.map(fn => `
+            try {
+                if (typeof ${fn} === 'function') {
+                    window.${fn} = ${fn};
+                }
+            } catch(e) {}
+        `).join('\n')}
         
         // Universal event handler
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Project "${name || 'Untitled'}" deployed successfully');
-            
             // Handle onclick events
             document.addEventListener('click', function(e) {
                 if (e.target.hasAttribute('onclick')) {
+                    const handler = e.target.getAttribute('onclick');
                     try {
-                        eval(e.target.getAttribute('onclick'));
+                        eval(handler);
                     } catch(error) {
-                        console.error('onclick handler error:', error);
+                        console.error('onclick error:', error);
                     }
                 }
             });
             
-            // Auto-initialize common functions
-            if (typeof window.init === 'function') window.init();
-            if (typeof window.onLoad === 'function') window.onLoad();
-            if (typeof window.main === 'function') window.main();
+            console.log('Project "${name || 'Untitled'}" loaded');
         });
-        
-        // Fire DOMContentLoaded if already loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {});
-        } else {
-            setTimeout(() => {
-                document.dispatchEvent(new Event('DOMContentLoaded'));
-            }, 100);
-        }
     </script>
 </body>
 </html>`;
-}
-
-// Helper function to auto-wrap JavaScript
-function autoWrapJavaScript(js) {
-    if (!js) return '';
-    
-    let wrapped = '';
-    
-    // Match function declarations
-    const funcRegex = /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{/g;
-    wrapped = js.replace(funcRegex, 'window.$1 = function($2) {');
-    
-    // Match arrow functions assigned to variables
-    const arrowRegex = /(const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>)\s*\{/g;
-    wrapped = wrapped.replace(arrowRegex, '$1 $2 = function($3$4) { window.$2 = $2;');
-    
-    return wrapped;
 }
 
 function extractFunctionNames(js) {

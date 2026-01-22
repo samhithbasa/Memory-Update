@@ -1,27 +1,4 @@
-// Replace the entire frontend_editor.js file with this corrected version
-
 console.log('Enhanced Frontend Editor JavaScript loaded');
-
-// Helper function for cookies
-const Cookies = {
-    get: function(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    },
-    set: function(name, value, days) {
-        let expires = '';
-        if (days) {
-            const date = new Date();
-            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-            expires = '; expires=' + date.toUTCString();
-        }
-        document.cookie = name + '=' + (value || '') + expires + '; path=/';
-    },
-    remove: function(name) {
-        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/';
-    }
-};
 
 class SimpleFrontendEditor {
     constructor() {
@@ -706,7 +683,6 @@ function init() {
         }
     }
 
-<<<<<<< HEAD
     generateHTML() {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
         
@@ -728,21 +704,6 @@ function init() {
         // Get main HTML file
         const mainHTML = this.files.html?.['index.html'] || 
                         this.files.html?.[Object.keys(this.files.html || {})[0]] || '';
-=======
-    switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(btn =>
-            btn.classList.toggle('active', btn.dataset.tab === tabName)
-        );
-        document.querySelectorAll('.tab-content').forEach(tab =>
-            tab.classList.toggle('active', tab.id === `${tabName}-tab`)
-        );
-        if (tabName === 'preview') this.updatePreview();
-    }
-
-    generateHTML() {
-        const projectName = document.getElementById('project-name')?.value || 'My Project';
-        const processedJS = this.autoWrapJavaScript(this.js);
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
 
         return `<!DOCTYPE html>
 <html>
@@ -765,25 +726,19 @@ function init() {
     ).join('\n')}
     
     <script>
+        // UNIVERSAL PREVIEW - AUTO-WRAPPED
         (function() {
             try {
-<<<<<<< HEAD
                 // User's original code
                 ${allJS}
                 
                 // Auto-wrapped version
-=======
-                ${this.js}
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
                 ${processedJS}
             } catch(error) {
                 console.error('JavaScript error:', error);
             }
             
-<<<<<<< HEAD
             // Universal event handler
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
             document.addEventListener('click', function(e) {
                 if (e.target.hasAttribute('onclick')) {
                     try {
@@ -820,7 +775,6 @@ function init() {
         }
     }
 
-<<<<<<< HEAD
     generateDeploymentHTML() {
         const projectName = document.getElementById('project-name')?.value || 'My Project';
         
@@ -849,11 +803,6 @@ function init() {
 
         // Generate asset references
         const assetRefs = this.generateAssetReferences();
-=======
-    generateDeploymentHTML(html, css, js) {
-        const projectName = document.getElementById('project-name')?.value || 'My Project';
-        const processedJS = this.autoWrapJavaScript(js);
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
 
         return `<!DOCTYPE html>
 <html lang="en">
@@ -870,7 +819,6 @@ function init() {
     ${assetRefs}
     
     <script>
-<<<<<<< HEAD
         // AUTO-WRAPPED JAVASCRIPT
         (function() {
             // User's original code
@@ -887,78 +835,30 @@ function init() {
         // Asset management
         window.projectAssets = ${JSON.stringify(this.assets)};
         
-=======
-        // Original code
-        try {
-            (function() {
-                ${js}
-            })();
-        } catch(error) {
-            console.error('User code error:', error);
-        }
-        
-        // Auto-wrapped version
-        (function() {
-            ${processedJS}
-        })();
-        
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
         // Universal event handler
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Project "${projectName}" loaded successfully');
             
-<<<<<<< HEAD
             // Handle all onclick events
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
             document.addEventListener('click', function(e) {
                 if (e.target.hasAttribute('onclick')) {
                     try {
-<<<<<<< HEAD
                         eval(e.target.getAttribute('onclick'));
                     } catch(error) {
                         console.error('onclick error:', error);
-=======
-                        eval(handler);
-                    } catch(error) {
-                        console.warn('onclick handler error:', error);
-                        const funcName = handler.replace(/\(.*\)/, '').trim();
-                        if (typeof window[funcName] === 'function') {
-                            window[funcName]();
-                        }
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
                     }
                 }
             });
             
-<<<<<<< HEAD
             // Auto-initialize
             if (typeof window.init === 'function') window.init();
             if (typeof window.main === 'function') window.main();
         });
-=======
-            setTimeout(() => {
-                if (typeof window.init === 'function') window.init();
-                if (typeof window.main === 'function') window.main();
-                if (typeof window.onload === 'function') window.onload();
-            }, 100);
-        });
-        
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOMContentLoaded fired');
-            });
-        } else {
-            console.log('DOM already loaded, triggering event');
-            document.dispatchEvent(new Event('DOMContentLoaded'));
-        }
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
     </script>
 </body>
 </html>`;
     }
 
-<<<<<<< HEAD
     generateAssetReferences() {
         return this.assets.map(asset => {
             if (asset.type.startsWith('image/')) {
@@ -972,8 +872,6 @@ function init() {
         }).join('\n');
     }
 
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
     autoWrapJavaScript(js) {
         if (!js.trim()) return js;
 
@@ -981,11 +879,7 @@ function init() {
 
         let processed = js;
 
-<<<<<<< HEAD
         // 1. Convert regular function declarations to window assignments
-=======
-        // Convert function declarations to window assignments
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
         processed = processed.replace(
             /function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{/g,
             (match, funcName, params) => {
@@ -994,11 +888,7 @@ function init() {
             }
         );
 
-<<<<<<< HEAD
         // 2. Convert const/let/var function assignments
-=======
-        // Convert variable function assignments
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
         processed = processed.replace(
             /(const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>)\s*\{/g,
             (match, declaration, funcName, funcParams, arrowParams) => {
@@ -1008,21 +898,17 @@ function init() {
             }
         );
 
-<<<<<<< HEAD
         // 3. Extract function names for additional window assignments
-=======
-        // Add window assignments for all functions
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
         const functionNames = this.extractAllFunctionNames(js);
+
+        // Add window assignments for all detected functions
         if (functionNames.length > 0) {
             console.log(`Found functions to make global: ${functionNames.join(', ')}`);
-<<<<<<< HEAD
 
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
             const windowAssignments = functionNames.map(funcName =>
                 `if (typeof ${funcName} === 'function' && !window.${funcName}) window.${funcName} = ${funcName};`
             ).join('\n');
+
             processed = windowAssignments + '\n' + processed;
         }
 
@@ -1051,15 +937,12 @@ function init() {
             functionNames.add(match[1]);
         }
 
-<<<<<<< HEAD
         // Method assignments
         const methodRegex = /([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:\s*function/g;
         while ((match = methodRegex.exec(js)) !== null) {
             functionNames.add(match[1]);
         }
 
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
         console.log(`Extracted function names: ${Array.from(functionNames)}`);
         return Array.from(functionNames);
     }
@@ -1093,6 +976,7 @@ function init() {
         const saveBtn = document.getElementById('save-project');
         const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
 
+        // Add saving state
         if (saveBtn) {
             saveBtn.innerHTML = '💾 Saving...';
             saveBtn.classList.add('saving');
@@ -1102,16 +986,8 @@ function init() {
         const projectName = document.getElementById('project-name')?.value.trim() || 'Untitled Project';
 
         try {
-<<<<<<< HEAD
             // Generate deployment HTML
             const deploymentHTML = this.generateDeploymentHTML();
-=======
-            const htmlContent = this.html;
-            const cssContent = this.css;
-            const jsContent = this.js;
-
-            const deploymentHTML = this.generateDeploymentHTML(htmlContent, cssContent, jsContent);
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
 
             const response = await fetch('/api/frontend/save', {
                 method: 'POST',
@@ -1172,7 +1048,6 @@ function init() {
         }
     }
 
-<<<<<<< HEAD
     showNotification(message, type = 'success') {
         const box = document.createElement('div');
         box.style.cssText = `
@@ -1200,8 +1075,6 @@ function init() {
         }, 3000);
     }
 
-=======
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
     async checkAuthStatus() {
         const token = Cookies.get('token');
         const authToggle = document.getElementById('auth-toggle');
@@ -1222,16 +1095,8 @@ function init() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.valid) {
-                    this.setAuthState(true);
-                    console.log('User authenticated:', data.user);
-                } else {
-                    Cookies.remove('token');
-                    this.setAuthState(false);
-                }
-            } else {
+            if (response.ok) this.setAuthState(true);
+            else {
                 Cookies.remove('token');
                 this.setAuthState(false);
             }
@@ -1307,30 +1172,6 @@ function init() {
         }
     }
 
-<<<<<<< HEAD
-=======
-    showNotification(message, type = 'success') {
-        const box = document.createElement('div');
-        box.style.cssText = `
-            position:fixed; top:20px; right:20px;
-            background:${type === 'success' ? '#10b981' : '#ef4444'};
-            color:#fff; padding:15px 25px; 
-            border-radius:10px; z-index:20000;
-            box-shadow:0 10px 25px rgba(0,0,0,.2);
-            animation:slideInRight .3s ease;
-            backdrop-filter:blur(10px);
-            border:1px solid rgba(255,255,255,.1);
-        `;
-        box.textContent = message;
-        document.body.appendChild(box);
-
-        setTimeout(() => {
-            box.style.animation = 'slideOutRight .3s ease';
-            setTimeout(() => box.remove(), 300);
-        }, 3000);
-    }
-
->>>>>>> f3df668d4c368d62ccecdd951fc6e63c9e341c9a
     async showProjects() {
         const token = Cookies.get('token');
         if (!token) {
@@ -1569,776 +1410,7 @@ function init() {
     }
 }
 
-class AdvancedFrontendEditor extends SimpleFrontendEditor {
-    constructor() {
-        super();
-        this.projectStructure = {
-            files: {
-                html: {},
-                css: {},
-                js: {},
-                assets: {}
-            },
-            folders: {},
-            mainHtml: 'index.html'
-        };
-        this.currentFile = null;
-        this.initAdvancedFeatures();
-    }
-
-    initAdvancedFeatures() {
-        this.bindAdvancedEvents();
-        this.loadProjectStructure();
-        this.renderFileTree();
-    }
-
-    bindAdvancedEvents() {
-        // File Manager
-        const fileManagerBtn = document.getElementById('file-manager-btn');
-        if (fileManagerBtn) {
-            fileManagerBtn.addEventListener('click', () => this.showFileManager());
-        }
-        
-        const closeModal = document.querySelector('.close-modal');
-        if (closeModal) {
-            closeModal.addEventListener('click', () => this.hideFileManager());
-        }
-        
-        // File operations
-        const newFileBtn = document.getElementById('new-file');
-        if (newFileBtn) {
-            newFileBtn.addEventListener('click', () => this.createNewFile());
-        }
-        
-        const newFolderBtn = document.getElementById('new-folder');
-        if (newFolderBtn) {
-            newFolderBtn.addEventListener('click', () => this.createNewFolder());
-        }
-        
-        const saveFileBtn = document.getElementById('save-file');
-        if (saveFileBtn) {
-            saveFileBtn.addEventListener('click', () => this.saveCurrentFile());
-        }
-        
-        const deleteFileBtn = document.getElementById('delete-file');
-        if (deleteFileBtn) {
-            deleteFileBtn.addEventListener('click', () => this.deleteCurrentFile());
-        }
-        
-        const renameFileBtn = document.getElementById('rename-file');
-        if (renameFileBtn) {
-            renameFileBtn.addEventListener('click', () => this.renameCurrentFile());
-        }
-        
-        // File selector
-        const fileSelector = document.getElementById('file-selector');
-        if (fileSelector) {
-            fileSelector.addEventListener('change', (e) => this.loadFile(e.target.value));
-        }
-        
-        // Pages preview
-        const pagesPreviewToggle = document.getElementById('pages-preview-toggle');
-        if (pagesPreviewToggle) {
-            pagesPreviewToggle.addEventListener('click', () => this.togglePagesPreview());
-        }
-        
-        const closePagesBtn = document.getElementById('close-pages');
-        if (closePagesBtn) {
-            closePagesBtn.addEventListener('click', () => this.hidePagesPreview());
-        }
-        
-        // Upload assets
-        const uploadAssetsBtn = document.getElementById('upload-assets');
-        if (uploadAssetsBtn) {
-            uploadAssetsBtn.addEventListener('click', () => this.uploadAssets());
-        }
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
-    }
-
-    loadProjectStructure() {
-        const saved = localStorage.getItem('projectStructure');
-        if (saved) {
-            this.projectStructure = JSON.parse(saved);
-        } else {
-            // Default structure
-            this.projectStructure = {
-                files: {
-                    html: {
-                        'index.html': this.html || '<!DOCTYPE html>\n<html>\n<head>\n    <title>My Project</title>\n</head>\n<body>\n    <h1>Hello World</h1>\n    <p>Start building your amazing project...</p>\n</body>\n</html>',
-                        'about.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>About</title>\n</head>\n<body>\n    <h1>About Page</h1>\n    <p>This is the about page.</p>\n</body>\n</html>'
-                    },
-                    css: {
-                        'style.css': this.css || '',
-                        'about.css': 'body { padding: 20px; font-family: Arial; }'
-                    },
-                    js: {
-                        'script.js': this.js || '',
-                        'about.js': 'console.log("About page loaded");'
-                    },
-                    assets: {}
-                },
-                folders: {
-                    images: { type: 'folder' },
-                    fonts: { type: 'folder' }
-                },
-                mainHtml: 'index.html'
-            };
-        }
-    }
-
-    renderFileTree() {
-        const container = document.getElementById('file-tree-container');
-        if (!container) return;
-
-        container.innerHTML = this.generateFileTreeHTML();
-        
-        // Add event listeners
-        container.querySelectorAll('.folder-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const folder = header.closest('.folder');
-                folder.classList.toggle('open');
-            });
-        });
-
-        container.querySelectorAll('.file-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.selectFile(item.dataset.path);
-            });
-        });
-    }
-
-    generateFileTreeHTML() {
-        let html = '<div class="file-tree-root">';
-        
-        // Root files
-        html += this.renderFilesList(this.projectStructure.files, '');
-        
-        // Folders
-        Object.entries(this.projectStructure.folders).forEach(([folderName, folderData]) => {
-            html += `
-                <div class="folder">
-                    <div class="folder-header">
-                        <span class="file-icon">📁</span>
-                        <span>${folderName}</span>
-                    </div>
-                    <div class="folder-content">
-                        ${this.renderFilesList(folderData.files || {}, folderName)}
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        return html;
-    }
-
-    renderFilesList(files, folderPath = '') {
-        let html = '';
-        
-        // HTML files
-        if (files.html) {
-            Object.keys(files.html).forEach(filename => {
-                const path = folderPath ? `${folderPath}/${filename}` : filename;
-                html += `
-                    <div class="file-item" data-path="${path}" data-type="html">
-                        <span class="file-icon">📄</span>
-                        <span>${filename}</span>
-                    </div>
-                `;
-            });
-        }
-        
-        // CSS files
-        if (files.css) {
-            Object.keys(files.css).forEach(filename => {
-                const path = folderPath ? `${folderPath}/${filename}` : filename;
-                html += `
-                    <div class="file-item" data-path="${path}" data-type="css">
-                        <span class="file-icon">🎨</span>
-                        <span>${filename}</span>
-                    </div>
-                `;
-            });
-        }
-        
-        // JS files
-        if (files.js) {
-            Object.keys(files.js).forEach(filename => {
-                const path = folderPath ? `${folderPath}/${filename}` : filename;
-                html += `
-                    <div class="file-item" data-path="${path}" data-type="js">
-                        <span class="file-icon">⚡</span>
-                        <span>${filename}</span>
-                    </div>
-                `;
-            });
-        }
-        
-        // Assets
-        if (files.assets) {
-            Object.keys(files.assets).forEach(filename => {
-                const path = folderPath ? `${folderPath}/${filename}` : filename;
-                const ext = filename.split('.').pop().toLowerCase();
-                const icon = this.getFileIcon(ext);
-                html += `
-                    <div class="file-item" data-path="${path}" data-type="asset">
-                        <span class="file-icon">${icon}</span>
-                        <span>${filename}</span>
-                    </div>
-                `;
-            });
-        }
-        
-        return html;
-    }
-
-    getFileIcon(extension) {
-        const icons = {
-            'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'svg': '🖼️',
-            'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵',
-            'mp4': '🎬', 'webm': '🎬', 'avi': '🎬',
-            'ttf': '🔤', 'otf': '🔤', 'woff': '🔤', 'woff2': '🔤',
-            'pdf': '📕', 'doc': '📄', 'docx': '📄',
-            'zip': '🗜️', 'rar': '🗜️', '7z': '🗜️'
-        };
-        return icons[extension] || '📎';
-    }
-
-    showFileManager() {
-        const modal = document.getElementById('file-manager-modal');
-        if (modal) {
-            modal.style.display = 'block';
-            this.renderFileTree();
-            this.updateFileSelector();
-        }
-    }
-
-    hideFileManager() {
-        const modal = document.getElementById('file-manager-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    selectFile(filePath) {
-        this.currentFile = filePath;
-        
-        // Update UI
-        document.querySelectorAll('.file-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`[data-path="${filePath}"]`)?.classList.add('active');
-        
-        this.loadFile(filePath);
-    }
-
-    loadFile(filePath) {
-        const [folder, filename] = this.parseFilePath(filePath);
-        const fileType = this.getFileType(filename);
-        
-        let content = '';
-        if (folder) {
-            content = this.projectStructure.folders[folder]?.files?.[fileType]?.[filename] || '';
-        } else {
-            content = this.projectStructure.files[fileType]?.[filename] || '';
-        }
-        
-        const editor = document.getElementById('file-editor');
-        if (editor) {
-            editor.value = content;
-            editor.dataset.path = filePath;
-            editor.dataset.type = fileType;
-        }
-        
-        this.updatePreview();
-    }
-
-    saveCurrentFile() {
-        const editor = document.getElementById('file-editor');
-        if (!editor || !this.currentFile) return;
-        
-        const content = editor.value;
-        const [folder, filename] = this.parseFilePath(this.currentFile);
-        const fileType = this.getFileType(filename);
-        
-        if (folder) {
-            if (!this.projectStructure.folders[folder]) {
-                this.projectStructure.folders[folder] = { type: 'folder', files: {} };
-            }
-            if (!this.projectStructure.folders[folder].files[fileType]) {
-                this.projectStructure.folders[folder].files[fileType] = {};
-            }
-            this.projectStructure.folders[folder].files[fileType][filename] = content;
-        } else {
-            this.projectStructure.files[fileType][filename] = content;
-        }
-        
-        this.saveProjectStructure();
-        this.updatePreview();
-        this.showNotification('File saved successfully!');
-    }
-
-    createNewFile() {
-        const name = prompt('Enter file name (with extension):');
-        if (!name) return;
-        
-        const type = this.getFileType(name);
-        if (!type) {
-            alert('Unsupported file type!');
-            return;
-        }
-        
-        const folder = prompt('Enter folder path (leave empty for root):', '');
-        
-        if (folder) {
-            if (!this.projectStructure.folders[folder]) {
-                this.projectStructure.folders[folder] = { type: 'folder', files: {} };
-            }
-            if (!this.projectStructure.folders[folder].files[type]) {
-                this.projectStructure.folders[folder].files[type] = {};
-            }
-            this.projectStructure.folders[folder].files[type][name] = '';
-        } else {
-            this.projectStructure.files[type][name] = '';
-        }
-        
-        this.saveProjectStructure();
-        this.renderFileTree();
-        this.updateFileSelector();
-    }
-
-    createNewFolder() {
-        const name = prompt('Enter folder name:');
-        if (!name) return;
-        
-        this.projectStructure.folders[name] = {
-            type: 'folder',
-            files: {}
-        };
-        
-        this.saveProjectStructure();
-        this.renderFileTree();
-    }
-
-    deleteCurrentFile() {
-        if (!this.currentFile || !confirm('Are you sure you want to delete this file?')) {
-            return;
-        }
-        
-        const [folder, filename] = this.parseFilePath(this.currentFile);
-        const fileType = this.getFileType(filename);
-        
-        if (folder) {
-            if (this.projectStructure.folders[folder]?.files?.[fileType]?.[filename]) {
-                delete this.projectStructure.folders[folder].files[fileType][filename];
-            }
-        } else {
-            if (this.projectStructure.files[fileType]?.[filename]) {
-                delete this.projectStructure.files[fileType][filename];
-            }
-        }
-        
-        this.saveProjectStructure();
-        this.currentFile = null;
-        const editor = document.getElementById('file-editor');
-        if (editor) editor.value = '';
-        this.renderFileTree();
-        this.updateFileSelector();
-        this.updatePreview();
-    }
-
-    renameCurrentFile() {
-        if (!this.currentFile) return;
-        
-        const newName = prompt('Enter new file name (with extension):', this.currentFile.split('/').pop());
-        if (!newName || newName === this.currentFile.split('/').pop()) return;
-        
-        const [folder, oldFilename] = this.parseFilePath(this.currentFile);
-        const oldFileType = this.getFileType(oldFilename);
-        const newFileType = this.getFileType(newName);
-        
-        if (oldFileType !== newFileType) {
-            alert('Cannot rename to different file type!');
-            return;
-        }
-        
-        // Get content
-        let content = '';
-        if (folder) {
-            content = this.projectStructure.folders[folder]?.files?.[oldFileType]?.[oldFilename] || '';
-        } else {
-            content = this.projectStructure.files[oldFileType]?.[oldFilename] || '';
-        }
-        
-        // Delete old
-        this.deleteCurrentFile();
-        
-        // Create new with same content
-        if (folder) {
-            if (!this.projectStructure.folders[folder].files[newFileType]) {
-                this.projectStructure.folders[folder].files[newFileType] = {};
-            }
-            this.projectStructure.folders[folder].files[newFileType][newName] = content;
-        } else {
-            this.projectStructure.files[newFileType][newName] = content;
-        }
-        
-        this.saveProjectStructure();
-        this.currentFile = folder ? `${folder}/${newName}` : newName;
-        this.renderFileTree();
-        this.updateFileSelector();
-        this.showNotification('File renamed successfully!');
-    }
-
-    uploadAssets() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = true;
-        input.accept = 'image/*,.pdf,.zip,.mp3,.mp4,.ttf,.woff,.woff2';
-        
-        input.onchange = (e) => {
-            const files = Array.from(e.target.files);
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    this.projectStructure.files.assets[file.name] = {
-                        name: file.name,
-                        type: file.type,
-                        size: file.size,
-                        content: event.target.result.split(',')[1],
-                        lastModified: new Date().toISOString()
-                    };
-                    
-                    this.saveProjectStructure();
-                    this.renderFileTree();
-                    this.updateFileSelector();
-                    this.showNotification(`Uploaded: ${file.name}`);
-                };
-                reader.readAsDataURL(file);
-            });
-        };
-        
-        input.click();
-    }
-
-    updateFileSelector() {
-        const selector = document.getElementById('file-selector');
-        if (!selector) return;
-        
-        selector.innerHTML = '<option value="">Select a file to edit</option>';
-        
-        // Add all HTML files
-        Object.keys(this.projectStructure.files.html || {}).forEach(filename => {
-            selector.add(new Option(`📄 ${filename}`, filename));
-        });
-        
-        // Add all CSS files
-        Object.keys(this.projectStructure.files.css || {}).forEach(filename => {
-            selector.add(new Option(`🎨 ${filename}`, filename));
-        });
-        
-        // Add all JS files
-        Object.keys(this.projectStructure.files.js || {}).forEach(filename => {
-            selector.add(new Option(`⚡ ${filename}`, filename));
-        });
-        
-        // Add files from folders
-        Object.entries(this.projectStructure.folders).forEach(([folderName, folderData]) => {
-            Object.keys(folderData.files?.html || {}).forEach(filename => {
-                selector.add(new Option(`📁 ${folderName}/📄 ${filename}`, `${folderName}/${filename}`));
-            });
-            Object.keys(folderData.files?.css || {}).forEach(filename => {
-                selector.add(new Option(`📁 ${folderName}/🎨 ${filename}`, `${folderName}/${filename}`));
-            });
-            Object.keys(folderData.files?.js || {}).forEach(filename => {
-                selector.add(new Option(`📁 ${folderName}/⚡ ${filename}`, `${folderName}/${filename}`));
-            });
-        });
-    }
-
-    parseFilePath(filePath) {
-        if (filePath.includes('/')) {
-            const parts = filePath.split('/');
-            const filename = parts.pop();
-            const folder = parts.join('/');
-            return [folder, filename];
-        }
-        return ['', filePath];
-    }
-
-    getFileType(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
-        if (['html', 'htm'].includes(ext)) return 'html';
-        if (ext === 'css') return 'css';
-        if (ext === 'js') return 'js';
-        return 'assets';
-    }
-
-    saveProjectStructure() {
-        localStorage.setItem('projectStructure', JSON.stringify(this.projectStructure));
-    }
-
-    generateUniversalHTML() {
-        // Collect all files
-        const htmlFiles = { ...this.projectStructure.files.html };
-        const cssFiles = { ...this.projectStructure.files.css };
-        const jsFiles = { ...this.projectStructure.files.js };
-        
-        // Add files from folders
-        Object.values(this.projectStructure.folders).forEach(folder => {
-            Object.assign(htmlFiles, folder.files?.html || {});
-            Object.assign(cssFiles, folder.files?.css || {});
-            Object.assign(jsFiles, folder.files?.js || {});
-        });
-        
-        // Create navigation between pages
-        const navigation = Object.keys(htmlFiles).map(filename => 
-            `<li><a href="${filename}" onclick="loadPage('${filename}'); return false;">${filename}</a></li>`
-        ).join('');
-        
-        // Generate main HTML with iframe navigation
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${document.getElementById('project-name')?.value || 'Multi-page Project'}</title>
-    <style>
-        body { margin: 0; font-family: Arial; }
-        .sidebar { width: 250px; height: 100vh; background: #2d3748; position: fixed; left: 0; top: 0; overflow-y: auto; }
-        .content { margin-left: 250px; height: 100vh; }
-        iframe { width: 100%; height: 100%; border: none; }
-        .nav-list { list-style: none; padding: 20px; }
-        .nav-list li { margin: 10px 0; }
-        .nav-list a { color: white; text-decoration: none; padding: 8px 12px; display: block; border-radius: 4px; }
-        .nav-list a:hover { background: #4a5568; }
-        .nav-list a.active { background: #4299e1; }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <h2 style="color: white; padding: 20px;">Pages</h2>
-        <ul class="nav-list">${navigation}</ul>
-    </div>
-    <div class="content">
-        <iframe id="page-frame" src="${this.projectStructure.mainHtml}"></iframe>
-    </div>
-    
-    <script>
-        function loadPage(page) {
-            document.querySelectorAll('.nav-list a').forEach(a => a.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('page-frame').src = page;
-        }
-        
-        // Make functions globally available
-        ${Object.keys(jsFiles).map(filename => `
-            // ${filename}
-            try {
-                ${jsFiles[filename]}
-            } catch(e) {
-                console.error('Error in ${filename}:', e);
-            }
-        `).join('\n')}
-    </script>
-</body>
-</html>`;
-    }
-
-    async generateDeploymentPackage() {
-        const packageData = {
-            project: this.projectStructure,
-            config: {
-                mainHtml: this.projectStructure.mainHtml,
-                version: '1.0.0',
-                createdAt: new Date().toISOString()
-            }
-        };
-        
-        // Convert assets to base64
-        const assets = {};
-        Object.entries(this.projectStructure.files.assets || {}).forEach(([name, asset]) => {
-            assets[name] = {
-                name: asset.name,
-                type: asset.type,
-                content: asset.content,
-                size: asset.size
-            };
-        });
-        
-        packageData.assets = assets;
-        return packageData;
-    }
-
-    async saveProject() {
-        const token = Cookies.get('token');
-        if (!token) {
-            alert('Please login to save your project');
-            return;
-        }
-
-        const saveBtn = document.getElementById('save-project');
-        const originalText = saveBtn ? saveBtn.innerHTML : 'Save';
-        
-        if (saveBtn) {
-            saveBtn.innerHTML = '💾 Saving...';
-            saveBtn.disabled = true;
-        }
-
-        try {
-            const projectName = document.getElementById('project-name')?.value.trim() || 'Untitled Project';
-            const deploymentPackage = await this.generateDeploymentPackage();
-            
-            const response = await fetch('/api/frontend/save-multi', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name: projectName,
-                    package: deploymentPackage,
-                    deploymentHTML: this.generateUniversalHTML()
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.currentProjectId = result.projectId;
-                const shareUrl = result.shareUrl;
-                
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    this.showSuccessNotification(shareUrl);
-                });
-
-                if (saveBtn) {
-                    saveBtn.innerHTML = '✅ Saved!';
-                    setTimeout(() => {
-                        saveBtn.innerHTML = originalText;
-                    }, 2000);
-                }
-            } else {
-                throw new Error(result.error || 'Failed to save project');
-            }
-        } catch (error) {
-            console.error('Error saving project:', error);
-            this.showNotification('Error saving project: ' + error.message, 'error');
-            if (saveBtn) {
-                saveBtn.innerHTML = '❌ Failed';
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
-                }, 2000);
-            }
-        } finally {
-            if (saveBtn) {
-                saveBtn.disabled = false;
-            }
-        }
-    }
-
-    updatePreview() {
-        try {
-            // For now, preview the main HTML file
-            const mainHtml = this.projectStructure.files.html[this.projectStructure.mainHtml] || 
-                           Object.values(this.projectStructure.files.html)[0] || 
-                           '<h1>No HTML files found</h1>';
-            
-            // Get associated CSS and JS for the main page
-            const css = this.projectStructure.files.css['style.css'] || '';
-            const js = this.projectStructure.files.js['script.js'] || '';
-            
-            const previewHTML = this.generateDeploymentHTML(mainHtml, css, js);
-            const frame = document.getElementById('preview-frame');
-            if (frame) {
-                frame.srcdoc = previewHTML;
-            }
-        } catch (error) {
-            console.error('Preview update error:', error);
-        }
-    }
-
-    togglePagesPreview() {
-        const pagesPreview = document.getElementById('pages-preview');
-        if (pagesPreview) {
-            pagesPreview.classList.toggle('open');
-            this.renderPagesPreview();
-        }
-    }
-
-    hidePagesPreview() {
-        const pagesPreview = document.getElementById('pages-preview');
-        if (pagesPreview) {
-            pagesPreview.classList.remove('open');
-        }
-    }
-
-    renderPagesPreview() {
-        const container = document.querySelector('.pages-list');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        Object.keys(this.projectStructure.files.html || {}).forEach(filename => {
-            const html = this.projectStructure.files.html[filename];
-            const card = document.createElement('div');
-            card.className = 'page-preview-card';
-            card.innerHTML = `
-                <div class="page-preview-header">
-                    <strong>${filename}</strong>
-                    <button class="btn-small" onclick="frontendEditor.setMainPage('${filename}')">
-                        ${filename === this.projectStructure.mainHtml ? '✅ Main' : 'Set as Main'}
-                    </button>
-                </div>
-                <iframe class="page-preview-frame" srcdoc="${this.escapeHtml(this.generatePagePreviewHTML(html))}"></iframe>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    generatePagePreviewHTML(html) {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { padding: 20px; font-family: Arial; }
-        img { max-width: 100%; }
-    </style>
-</head>
-<body>${html}</body>
-</html>`;
-    }
-
-    setMainPage(filename) {
-        this.projectStructure.mainHtml = filename;
-        this.saveProjectStructure();
-        this.updatePreview();
-        this.renderPagesPreview();
-        this.showNotification(`Main page set to: ${filename}`);
-    }
-
-    handleKeyboardShortcuts(e) {
-        // Ctrl+S to save
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            this.saveCurrentFile();
-        }
-        
-        // Ctrl+F to open file manager
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-            e.preventDefault();
-            this.showFileManager();
-        }
-    }
-}
-
-// Initialize enhanced editor
+// Initialize editor
 document.addEventListener('DOMContentLoaded', () => {
-    window.frontendEditor = new AdvancedFrontendEditor();
+    window.frontendEditor = new SimpleFrontendEditor();
 });
